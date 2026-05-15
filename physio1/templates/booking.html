@@ -264,6 +264,7 @@
     {% endif %}
 
     <form method="POST" action="/booking" id="booking-form" onsubmit="return validateForm()">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <!-- 1. SERVICE -->
       <div class="form-card form-section">
@@ -376,8 +377,8 @@
           </div>
         </div>
 
-        <div id="ssl-badge" class="ssl-badge">
-          🔒 <span>256-bit SSL encryption. Your payment information is secure and never stored on our servers.</span>
+        <div id="demo-badge" class="ssl-badge" style="background:#fef3c7; border:1px solid #fbbf24; border-radius:4px; padding:10px 14px; color:#92400e;">
+          ⚠️ <span><strong>Demo only.</strong> No real payment is processed. Do not enter real card details.</span>
         </div>
 
         <button type="submit" class="btn-submit" id="submit-btn">Pay &amp; Confirm Booking</button>
@@ -445,7 +446,7 @@
   function applyPaymentState() {
     const cardBox     = document.getElementById('card-box');
     const disabledMsg = document.getElementById('payment-disabled-msg');
-    const sslBadge    = document.getElementById('ssl-badge');
+    const sslBadge    = document.getElementById('demo-badge');
     const submitBtn   = document.getElementById('submit-btn');
     const cardInputs  = cardBox.querySelectorAll('input');
 

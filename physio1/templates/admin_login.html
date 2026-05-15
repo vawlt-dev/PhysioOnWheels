@@ -120,6 +120,7 @@
     <div class="error-msg">{{ error }}</div>
     {% endif %}
     <form method="POST" action="/admin/login">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label for="username">Username</label>
       <input type="text" name="username" id="username" autocomplete="username" required>
       <label for="password">Password</label>

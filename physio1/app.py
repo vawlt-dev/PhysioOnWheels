@@ -1,23 +1,39 @@
-import os, datetime, threading, json, uuid
+import hmac, os, datetime, threading, json, uuid, secrets
 from functools import wraps
 from flask import (Flask, render_template, request, redirect,
                    send_from_directory, abort, session, jsonify)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 
 PORT = 5002
 
 app = Flask(__name__)
+
 _secret = os.environ.get("PHYSIO_SECRET_KEY")
 if not _secret:
-    raise RuntimeError("PHYSIO_SECRET_KEY environment variable is not set. Run setup_env.ps1 first.")
+    raise RuntimeError("PHYSIO_SECRET_KEY is not set. Run setup_env.ps1 first.")
 app.secret_key = _secret
+
+IS_PRODUCTION = bool(os.environ.get("PHYSIO_PRODUCTION"))
+app.config.update(
+    SESSION_COOKIE_SECURE=IS_PRODUCTION,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=datetime.timedelta(hours=8),
+    WTF_CSRF_TIME_LIMIT=3600,
+)
+
+csrf    = CSRFProtect(app)
+limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
 BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
 CONTENT_DIR   = os.path.join(BASE_DIR, 'content')
+IMAGES_DIR    = os.path.join(CONTENT_DIR, 'images')
 CONTENT_FILE  = os.path.join(CONTENT_DIR, 'content.json')
 BOOKINGS_FILE = os.path.join(CONTENT_DIR, 'bookings.json')
 
-os.makedirs(CONTENT_DIR, exist_ok=True)
-os.makedirs(os.path.join(CONTENT_DIR, 'images'), exist_ok=True)
+os.makedirs(IMAGES_DIR, exist_ok=True)
 
 ADMIN_USER = os.environ.get("PHYSIO_ADMIN_USER", "")
 ADMIN_PASS = os.environ.get("PHYSIO_ADMIN_PASS", "")
@@ -82,12 +98,12 @@ def login_required(f):
 
 
 # ---------------------------------------------------------------------------
-# Static content
+# Static content — images only (bookings.json / content.json are NOT served)
 # ---------------------------------------------------------------------------
 
-@app.route('/content/<path:filename>')
-def content_files(filename: str):
-    return send_from_directory(CONTENT_DIR, filename)
+@app.route('/content/images/<path:filename>')
+def content_images(filename: str):
+    return send_from_directory(IMAGES_DIR, filename)
 
 
 # ---------------------------------------------------------------------------
@@ -123,30 +139,29 @@ def booking():
 
 
 # ---------------------------------------------------------------------------
-# API — available time slots
+# API — available time slots (GET, no CSRF needed)
 # ---------------------------------------------------------------------------
 
 @app.route('/api/slots')
+@csrf.exempt
 def api_slots():
     date_str = request.args.get('date', '')
     if not date_str:
         return jsonify([])
 
     c = get_content()
-    avail     = c.get('availability', {})
-    start_h   = avail.get('start_hour', 8)
-    end_h     = avail.get('end_hour', 18)
-    slot_m    = avail.get('slot_duration', 60)
-    allowed   = avail.get('days', [0, 1, 2, 3, 4, 5])
+    avail   = c.get('availability', {})
+    start_h = avail.get('start_hour', 8)
+    end_h   = avail.get('end_hour', 18)
+    slot_m  = avail.get('slot_duration', 60)
+    allowed = avail.get('days', [0, 1, 2, 3, 4, 5])
 
     try:
         date_obj = datetime.date.fromisoformat(date_str)
     except ValueError:
         return jsonify([])
 
-    if date_obj.weekday() not in allowed:
-        return jsonify([])
-    if date_obj < datetime.date.today():
+    if date_obj.weekday() not in allowed or date_obj < datetime.date.today():
         return jsonify([])
 
     all_slots = []
@@ -156,20 +171,17 @@ def api_slots():
         all_slots.append(f"{h:02d}:{m:02d}")
         current += slot_m
 
-    bookings = get_bookings()
     booked = {
-        b['time'] for b in bookings
+        b['time'] for b in get_bookings()
         if b['date'] == date_str and b['status'] != 'cancelled'
     }
 
     def fmt(t: str) -> str:
         h, m = map(int, t.split(':'))
-        suffix = 'am' if h < 12 else 'pm'
         h12 = h % 12 or 12
-        return f"{h12}:{m:02d}{suffix}"
+        return f"{h12}:{m:02d}{'am' if h < 12 else 'pm'}"
 
-    available = [{'value': s, 'label': fmt(s)} for s in all_slots if s not in booked]
-    return jsonify(available)
+    return jsonify([{'value': s, 'label': fmt(s)} for s in all_slots if s not in booked])
 
 
 # ---------------------------------------------------------------------------
@@ -188,16 +200,29 @@ def booking_post():
     time_slot = request.form.get('time_slot', '')[:10].strip()
     notes     = request.form.get('notes',     '')[:1000].strip()
 
+    # Required field check
     if not all([name, email, service, date_str, time_slot]):
         return redirect('/booking?error=missing')
 
+    # Validate service exists in current pricing
+    valid_services = [p['name'] for p in c.get('pricing', [])]
+    if service not in valid_services:
+        return redirect('/booking?error=invalid')
+
+    # Validate date
+    try:
+        date_obj = datetime.date.fromisoformat(date_str)
+        if date_obj < datetime.date.today():
+            return redirect('/booking?error=invalid')
+    except ValueError:
+        return redirect('/booking?error=invalid')
+
     price = next(
-        (p['price'] for p in c.get('pricing', []) if p['name'] == service),
-        0
+        (p['price'] for p in c.get('pricing', []) if p['name'] == service), 0
     )
 
     payment_enabled = c.get('settings', {}).get('payment_enabled', True)
-    booking_id = str(uuid.uuid4())[:8].upper()
+    booking_id = str(uuid.uuid4())  # full UUID — not truncated
 
     record = {
         'id':             booking_id,
@@ -219,11 +244,16 @@ def booking_post():
         bookings.append(record)
         _save_bookings(bookings)
 
+    # Session-gate: only the browser that submitted can view the confirm page
+    session['last_booking_id'] = booking_id
     return redirect(f'/booking/confirm/{booking_id}')
 
 
 @app.route('/booking/confirm/<booking_id>')
 def booking_confirm(booking_id: str):
+    if session.get('last_booking_id') != booking_id:
+        abort(404)
+    session.pop('last_booking_id', None)
     booking = next((b for b in get_bookings() if b['id'] == booking_id), None)
     if not booking:
         abort(404)
@@ -235,21 +265,27 @@ def booking_confirm(booking_id: str):
 # ---------------------------------------------------------------------------
 
 @app.route('/admin/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def admin_login():
     error = None
     if request.method == 'POST':
         u = request.form.get('username', '')
         p = request.form.get('password', '')
-        if u == ADMIN_USER and p == ADMIN_PASS:
+        # Constant-time comparison prevents timing oracle attacks
+        user_ok = hmac.compare_digest(u, ADMIN_USER)
+        pass_ok = hmac.compare_digest(p, ADMIN_PASS)
+        if user_ok and pass_ok:
+            session.clear()
             session['admin'] = True
             return redirect('/admin')
         error = 'Incorrect username or password.'
     return render_template('admin_login.html', error=error)
 
 
-@app.route('/admin/logout')
+@app.route('/admin/logout', methods=['POST'])
+@login_required
 def admin_logout():
-    session.pop('admin', None)
+    session.clear()
     return redirect('/admin/login')
 
 
@@ -411,13 +447,15 @@ def admin_booking_status(booking_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Misc
+# Security headers
 # ---------------------------------------------------------------------------
 
 @app.after_request
-def allow_iframe(response):
-    response.headers['X-Frame-Options'] = 'ALLOWALL'
-    response.headers['Content-Security-Policy'] = 'frame-ancestors *'
+def set_security_headers(response):
+    response.headers['X-Frame-Options']        = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options']  = 'nosniff'
+    response.headers['Referrer-Policy']         = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
     return response
 
 

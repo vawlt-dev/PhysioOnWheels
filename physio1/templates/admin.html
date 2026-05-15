@@ -321,7 +321,10 @@
   <span class="header-brand">Physio<span>OnWheels</span> Admin</span>
   <div class="header-right">
     <a href="/" target="_blank" class="btn-viewsite">View Site</a>
-    <a href="/admin/logout">Sign Out</a>
+    <form method="POST" action="/admin/logout" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" style="background:none;border:none;color:var(--teal-100);cursor:pointer;font-family:Arial,sans-serif;font-size:13px;padding:0;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color=''">Sign Out</button>
+    </form>
   </div>
 </header>
 
@@ -403,6 +406,7 @@
               </td>
               <td>
                 <form method="POST" action="/admin/bookings/{{ b.id }}/status" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <select name="status" class="status-select">
                     <option value="confirmed" {% if b.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
                     <option value="completed" {% if b.status == 'completed' %}selected{% endif %}>Completed</option>
@@ -441,6 +445,7 @@
         </div>
 
         <form method="POST" action="/admin/banner">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="toggle-row">
             <div>
               <div class="toggle-label-text">
@@ -480,6 +485,7 @@
       <p class="page-title">Content</p>
       <h1 class="page-heading">Page Text</h1>
       <form method="POST" action="/admin/content">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <!-- HERO -->
         <div class="card">
@@ -575,6 +581,7 @@
         <p class="card-desc">These cards appear on the Home and Services pages. Leave a Name blank to remove that service. You can add up to 10 services.</p>
 
         <form method="POST" action="/admin/services">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% set svc_count = [c.services | length, 8] | max %}
           {% for i in range(svc_count) %}
           {% set s = c.services[i] if i < c.services | length else {} %}
@@ -610,6 +617,7 @@
         <p class="card-desc">Displayed on the Pricing page and in the booking form dropdown. Leave a Name blank to remove that entry. Prices are in NZD.</p>
 
         <form method="POST" action="/admin/pricing">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% set price_count = [c.pricing | length, 6] | max %}
           {% for i in range(price_count) %}
           {% set p = c.pricing[i] if i < c.pricing | length else {} %}
@@ -648,6 +656,7 @@
       <h1 class="page-heading">Settings</h1>
 
       <form method="POST" action="/admin/settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- PAYMENT TOGGLE -->
         <div class="card">
           <h2 class="card-title">Online Payment</h2>
