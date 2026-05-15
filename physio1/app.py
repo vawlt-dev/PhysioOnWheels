@@ -6,7 +6,10 @@ from flask import (Flask, render_template, request, redirect,
 PORT = 5002
 
 app = Flask(__name__)
-app.secret_key = "physio-admin-s3cr3t-x9p2k7"
+_secret = os.environ.get("PHYSIO_SECRET_KEY")
+if not _secret:
+    raise RuntimeError("PHYSIO_SECRET_KEY environment variable is not set. Run setup_env.ps1 first.")
+app.secret_key = _secret
 
 BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
 CONTENT_DIR   = os.path.join(BASE_DIR, 'content')
@@ -16,8 +19,10 @@ BOOKINGS_FILE = os.path.join(CONTENT_DIR, 'bookings.json')
 os.makedirs(CONTENT_DIR, exist_ok=True)
 os.makedirs(os.path.join(CONTENT_DIR, 'images'), exist_ok=True)
 
-ADMIN_USER = "physio"
-ADMIN_PASS = "physioAdmin2024"
+ADMIN_USER = os.environ.get("PHYSIO_ADMIN_USER", "")
+ADMIN_PASS = os.environ.get("PHYSIO_ADMIN_PASS", "")
+if not ADMIN_USER or not ADMIN_PASS:
+    raise RuntimeError("PHYSIO_ADMIN_USER and PHYSIO_ADMIN_PASS must be set. Run setup_env.ps1 first.")
 
 _content_lock  = threading.Lock()
 _bookings_lock = threading.Lock()
