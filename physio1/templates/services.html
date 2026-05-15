@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Services — PhysioOnWheels{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    background: linear-gradient(135deg, #134e4a 0%, #0d9488 100%);
+    padding: 64px 28px;
+    text-align: center;
+    color: #fff;
+  }
+  .page-hero h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 14px; }
+  .page-hero p { font-family: Arial, sans-serif; font-size: 16px; color: #99f6e4; max-width: 540px; margin: 0 auto; line-height: 1.8; }
+
+  .service-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 32px;
+    align-items: start;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--teal);
+    border-radius: 6px;
+    padding: 36px;
+    margin-bottom: 20px;
+    transition: box-shadow 0.2s;
+  }
+  .service-row:hover { box-shadow: 0 4px 20px rgba(13,148,136,0.1); }
+  .service-row-icon {
+    font-size: 2.8rem;
+    width: 70px;
+    text-align: center;
+    padding-top: 4px;
+  }
+  .service-row h2 { font-size: 1.2rem; color: var(--teal-dark); margin-bottom: 8px; }
+  .service-row-meta {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--teal);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .service-row p {
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.75;
+  }
+
+  .faq-item {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+  }
+  .faq-item h3 { font-size: 1rem; color: var(--teal-dark); margin-bottom: 10px; }
+  .faq-item p { font-family: Arial, sans-serif; font-size: 14px; color: var(--text-muted); line-height: 1.75; }
+
+  @media (max-width: 600px) {
+    .service-row { grid-template-columns: 1fr; gap: 16px; padding: 24px 20px; }
+    .service-row-icon { font-size: 2rem; width: auto; }
+    section { padding-left: 20px !important; padding-right: 20px !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HERO -->
+<section class="page-hero">
+  <p class="label" style="color:#5eead4; justify-content:center; display:flex;">What We Offer</p>
+  <h1>Our Services</h1>
+  <p>A full range of physiotherapy services, delivered in the comfort of your own home.</p>
+</section>
+
+<!-- SERVICES LIST -->
+<section style="padding: 72px 28px; background: var(--cream);">
+  <div class="container" style="max-width: 860px;">
+    {% for s in c.services %}
+    <div class="service-row">
+      <div class="service-row-icon">{{ s.icon }}</div>
+      <div>
+        <h2>{{ s.name }}</h2>
+        <p class="service-row-meta">⏱ {{ s.duration }}</p>
+        <p>{{ s.short }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- WHAT TO EXPECT -->
+<section style="padding: 72px 28px; background: var(--white);">
+  <div class="container">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:start;">
+      <div>
+        <p class="label">Your First Session</p>
+        <h2 style="font-size: clamp(1.2rem, 3vw, 1.7rem); color: var(--teal-dark); margin-bottom: 20px;">What to Expect</h2>
+        <p style="font-family: Arial, sans-serif; font-size: 15px; color: var(--text-muted); line-height: 1.85; margin-bottom: 16px;">
+          At your initial assessment, your physiotherapist will visit your home and take time to understand your condition, history, and goals. You'll work together to develop a treatment plan tailored to your specific needs and lifestyle.
+        </p>
+        <p style="font-family: Arial, sans-serif; font-size: 15px; color: var(--text-muted); line-height: 1.85; margin-bottom: 28px;">
+          Each session typically lasts 45–60 minutes. Just have a comfortable space where you can move freely — we'll bring any necessary equipment.
+        </p>
+        <a href="/booking" class="btn btn-teal">Book Your First Session</a>
+      </div>
+      <div>
+        <p class="label">Common Questions</p>
+        <div class="faq-item">
+          <h3>Do I need a referral?</h3>
+          <p>No — you can contact us directly. We also accept referrals from GPs, specialists, and other healthcare providers.</p>
+        </div>
+        <div class="faq-item">
+          <h3>What do I need to prepare?</h3>
+          <p>Just a comfortable space where you can move freely. We'll bring any necessary equipment. Wear loose, comfortable clothing.</p>
+        </div>
+        <div class="faq-item">
+          <h3>How many sessions will I need?</h3>
+          <p>This depends on your condition. Your physiotherapist will give an honest estimate at your initial assessment.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Is my condition covered?</h3>
+          <p>Our services are funded privately or through healthcare schemes. Contact us for details about your specific situation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- IMAGE STRIP -->
+<section style="padding: 56px 28px; background: var(--teal-pale);">
+  <div class="container">
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:24px;">
+      <img src="/content/images/physio-stretch.svg" alt="Guided rehabilitation" style="width:100%; border-radius:8px; border:1px solid var(--teal-100);">
+      <img src="/content/images/physio-balance.svg" alt="Balance and falls prevention" style="width:100%; border-radius:8px; border:1px solid var(--teal-100);">
+      <img src="/content/images/physio-homevisit.svg" alt="Home visits available" style="width:100%; border-radius:8px; border:1px solid var(--teal-100);">
+    </div>
+  </div>
+</section>
+
+{% endblock %}

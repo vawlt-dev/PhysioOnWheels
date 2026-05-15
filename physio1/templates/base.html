@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PhysioOnWheels — Home Physiotherapy{% endblock %}</title>
+  {% block seo %}
+  <meta name="description" content="Professional physiotherapy in the comfort of your own home. Serving Auckland and surrounding areas.">
+  {% endblock %}
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:       #0d9488;
+      --teal-dark:  #0f766e;
+      --teal-xdark: #134e4a;
+      --teal-light: #5eead4;
+      --teal-pale:  #f0fdfa;
+      --teal-100:   #ccfbf1;
+      --white:      #ffffff;
+      --cream:      #f8fafc;
+      --text:       #1e293b;
+      --text-muted: #64748b;
+      --border:     #e2e8f0;
+      --coral:      #f97316;
+      --coral-dark: #ea580c;
+    }
+
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--white);
+      border-bottom: 2px solid var(--teal-100);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(13,148,136,0.08);
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      font-family: Georgia, serif;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--teal-dark);
+      text-decoration: none;
+      letter-spacing: -0.3px;
+    }
+    .nav-brand span { color: var(--coral); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      list-style: none;
+    }
+    .nav-links a {
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .nav-links a:hover { color: var(--teal); background: var(--teal-pale); }
+    .nav-links a.active { color: var(--teal-dark); font-weight: 700; }
+    .nav-links .nav-book {
+      background: var(--teal);
+      color: #fff !important;
+      border-radius: 4px;
+      font-weight: 700;
+      padding: 9px 18px;
+    }
+    .nav-links .nav-book:hover { background: var(--teal-dark) !important; }
+
+    /* ── BANNER ── */
+    .site-banner {
+      padding: 11px 28px;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .banner-info    { background: var(--teal); color: #fff; }
+    .banner-warning { background: #f97316; color: #fff; }
+    .banner-promo   { background: var(--teal-xdark); color: var(--teal-100); }
+
+    /* ── CONTAINER ── */
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-block;
+      padding: 13px 28px;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .btn-teal         { background: var(--teal); color: #fff; }
+    .btn-teal:hover   { background: var(--teal-dark); color: #fff; }
+    .btn-coral        { background: var(--coral); color: #fff; }
+    .btn-coral:hover  { background: var(--coral-dark); color: #fff; }
+    .btn-outline      { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.65); }
+    .btn-outline:hover { border-color: #fff; background: rgba(255,255,255,0.12); }
+    .btn-outline-teal { background: transparent; color: var(--teal); border: 2px solid var(--teal); }
+    .btn-outline-teal:hover { background: var(--teal); color: #fff; }
+
+    /* ── LABEL / EYEBROW ── */
+    .label {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    /* ── MAIN ── */
+    main { flex: 1; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--teal-xdark);
+      color: #94d5cc;
+      padding: 52px 28px 32px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 48px;
+    }
+    .footer-brand {
+      font-family: Georgia, serif;
+      font-size: 1.15rem;
+      color: #fff;
+      font-weight: bold;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .footer-brand span { color: var(--teal-light); }
+    footer h4 {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--teal-light);
+      margin-bottom: 16px;
+      font-family: Arial, sans-serif;
+    }
+    footer ul { list-style: none; }
+    footer ul li { margin-bottom: 10px; }
+    footer a { color: #94d5cc; text-decoration: none; transition: color 0.2s; }
+    footer a:hover { color: #fff; }
+    .footer-tagline { line-height: 1.7; margin-bottom: 16px; }
+    .footer-area { color: var(--teal-light); font-weight: 700; font-size: 13px; }
+    .footer-bottom {
+      max-width: 1100px;
+      margin: 36px auto 0;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: 12px;
+      color: #5eead4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    @media (max-width: 768px) {
+      .nav-links a { padding: 6px 10px; font-size: 13px; }
+      .footer-inner { grid-template-columns: 1fr; gap: 28px; }
+      .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
+    }
+    @media (max-width: 600px) {
+      .nav-links { gap: 0; }
+      .nav-links li:not(:last-child) { display: none; }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- NAVIGATION -->
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">Physio<span>OnWheels</span></a>
+    <ul class="nav-links">
+      <li><a href="/" {% if active == 'home' %}class="active"{% endif %}>Home</a></li>
+      <li><a href="/about" {% if active == 'about' %}class="active"{% endif %}>About</a></li>
+      <li><a href="/services" {% if active == 'services' %}class="active"{% endif %}>Services</a></li>
+      <li><a href="/pricing" {% if active == 'pricing' %}class="active"{% endif %}>Pricing</a></li>
+      <li><a href="/booking" class="nav-book {% if active == 'booking' %}active{% endif %}">Book Now</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- BANNER -->
+{% if c.banner and c.banner.enabled %}
+<div class="site-banner banner-{{ c.banner.type }}">{{ c.banner.message }}</div>
+{% endif %}
+
+<!-- MAIN CONTENT -->
+<main>{% block content %}{% endblock %}</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div>
+      <span class="footer-brand">Physio<span>OnWheels</span></span>
+      <p class="footer-tagline">Professional physiotherapy, delivered to your door across {{ c.contact.service_area }}.</p>
+      <p class="footer-area">{{ c.contact.service_area }}</p>
+    </div>
+    <div>
+      <h4>Quick Links</h4>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About Us</a></li>
+        <li><a href="/services">Our Services</a></li>
+        <li><a href="/pricing">Pricing</a></li>
+        <li><a href="/booking">Book a Session</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <ul>
+        <li><a href="tel:{{ c.contact.phone }}">{{ c.contact.phone }}</a></li>
+        <li><a href="mailto:{{ c.contact.email }}">{{ c.contact.email }}</a></li>
+        <li style="color:#94d5cc; line-height:1.7; margin-top:4px;">{{ c.contact.hours }}</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© {{ current_year }} PhysioOnWheels. All rights reserved.</span>
+    <a href="/admin" style="color:#5eead4; opacity:0.6; font-size:11px;">Admin</a>
+  </div>
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

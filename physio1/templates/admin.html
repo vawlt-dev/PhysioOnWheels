@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — PhysioOnWheels</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:       #0d9488;
+      --teal-dark:  #0f766e;
+      --teal-xdark: #134e4a;
+      --teal-light: #5eead4;
+      --teal-pale:  #f0fdfa;
+      --teal-100:   #ccfbf1;
+      --white:      #ffffff;
+      --cream:      #f8fafc;
+      --border:     #e2e8f0;
+      --text:       #1e293b;
+      --muted:      #64748b;
+      --coral:      #f97316;
+    }
+    body { font-family: Georgia, 'Times New Roman', serif; background: #eef6f5; color: var(--text); min-height: 100vh; }
+
+    /* HEADER */
+    header {
+      background: var(--teal-xdark);
+      border-bottom: 3px solid var(--teal);
+      padding: 0 32px;
+      height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-brand { font-family: Georgia, serif; font-size: 1rem; font-weight: bold; color: #fff; }
+    .header-brand span { color: var(--teal-light); }
+    .header-right { display: flex; align-items: center; gap: 16px; font-family: Arial, sans-serif; font-size: 13px; }
+    .header-right a { color: var(--teal-100); text-decoration: none; transition: color 0.2s; }
+    .header-right a:hover { color: #fff; }
+    .btn-viewsite {
+      background: var(--teal);
+      color: #fff !important;
+      padding: 7px 16px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+    .btn-viewsite:hover { background: var(--teal-dark) !important; }
+
+    /* LAYOUT */
+    .admin-layout { display: flex; min-height: calc(100vh - 62px); }
+
+    /* SIDEBAR TABS */
+    .sidebar {
+      width: 200px;
+      background: var(--white);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      flex-shrink: 0;
+      position: sticky;
+      top: 62px;
+      height: calc(100vh - 62px);
+      overflow-y: auto;
+    }
+    .sidebar-section {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--teal);
+      padding: 16px 20px 8px;
+    }
+    .tab-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      padding: 11px 20px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .tab-btn:hover { background: var(--teal-pale); color: var(--teal); }
+    .tab-btn.active { background: var(--teal-pale); color: var(--teal-dark); font-weight: 700; border-left-color: var(--teal); }
+    .tab-icon { margin-right: 8px; }
+
+    /* MAIN CONTENT */
+    .admin-main { flex: 1; padding: 36px 40px; max-width: 900px; }
+    .page-title { font-family: Arial, sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--teal); margin-bottom: 4px; }
+    .page-heading { font-size: 1.4rem; color: var(--teal-xdark); margin-bottom: 24px; }
+
+    /* TAB CONTENT */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* CARD */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .card-title {
+      font-size: 0.9rem;
+      color: var(--teal-dark);
+      margin-bottom: 4px;
+    }
+    .card-desc {
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 22px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* FORM ELEMENTS */
+    label.field-label {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text);
+      display: block;
+      margin-bottom: 7px;
+    }
+    input[type="text"], input[type="email"], input[type="number"],
+    input[type="tel"], textarea, select {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--white);
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--teal); }
+    textarea { resize: vertical; min-height: 70px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+    /* TOGGLE */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .toggle-label-text { font-family: Arial, sans-serif; font-size: 14px; font-weight: 700; color: var(--text); }
+    .toggle-hint { font-family: Arial, sans-serif; font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 28px; cursor: pointer; transition: background 0.2s; }
+    .slider::before { content: ''; position: absolute; height: 20px; width: 20px; left: 4px; bottom: 4px; background: white; border-radius: 50%; transition: transform 0.2s; }
+    input:checked + .slider { background: var(--teal); }
+    input:checked + .slider::before { transform: translateX(24px); }
+
+    /* BADGE */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .badge-on       { background: #d1fae5; color: #065f46; }
+    .badge-off      { background: #f1f5f9; color: #64748b; }
+    .badge-paid     { background: #d1fae5; color: #065f46; }
+    .badge-pending  { background: #fef3c7; color: #92400e; }
+    .badge-confirmed{ background: #dbeafe; color: #1e40af; }
+    .badge-completed{ background: #d1fae5; color: #065f46; }
+    .badge-cancelled{ background: #fee2e2; color: #991b1b; }
+
+    /* BANNER PREVIEW */
+    .preview { border-radius: 4px; padding: 10px 16px; font-family: Arial, sans-serif; font-size: 14px; font-weight: 600; margin-bottom: 20px; text-align: center; }
+    .preview-info    { background: var(--teal); color: #fff; }
+    .preview-warning { background: #f97316; color: #fff; }
+    .preview-promo   { background: var(--teal-xdark); color: var(--teal-100); }
+    .preview-off     { background: #f1f5f9; color: #94a3b8; border: 1px dashed var(--border); font-style: italic; }
+
+    /* SAVE BUTTON */
+    .btn-save {
+      padding: 11px 28px;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      letter-spacing: 0.5px;
+    }
+    .btn-save:hover { background: var(--teal-dark); }
+
+    /* SERVICE / PRICING ROW */
+    .edit-row {
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .edit-row-header {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 14px;
+    }
+
+    /* BOOKINGS TABLE */
+    .bookings-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; }
+    .bookings-table th {
+      background: var(--teal-pale);
+      border-bottom: 2px solid var(--teal-100);
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--teal-dark);
+      white-space: nowrap;
+    }
+    .bookings-table td {
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .bookings-table tr:last-child td { border-bottom: none; }
+    .bookings-table tr:hover td { background: var(--teal-pale); }
+    .booking-ref { font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; color: var(--teal-dark); }
+    .patient-name { font-weight: 700; color: var(--text); }
+    .patient-contact { color: var(--muted); font-size: 12px; }
+
+    .status-select {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      background: var(--white);
+      color: var(--text);
+      margin-right: 6px;
+      margin-bottom: 0;
+      width: auto;
+    }
+    .btn-update {
+      padding: 5px 12px;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-update:hover { background: var(--teal-dark); }
+
+    .no-bookings {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted);
+      font-family: Arial, sans-serif;
+      font-size: 15px;
+    }
+    .no-bookings .icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+    .stat-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-box {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--teal);
+      border-radius: 6px;
+      padding: 16px 18px;
+      text-align: center;
+    }
+    .stat-num { font-size: 1.8rem; font-weight: bold; color: var(--teal-xdark); }
+    .stat-label { font-family: Arial, sans-serif; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+    @media (max-width: 800px) {
+      .admin-layout { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; display: flex; flex-wrap: wrap; padding: 12px; gap: 4px; }
+      .tab-btn { width: auto; border-left: none; border-bottom: 3px solid transparent; padding: 8px 14px; font-size: 13px; }
+      .tab-btn.active { border-bottom-color: var(--teal); border-left: none; }
+      .sidebar-section { display: none; }
+      .admin-main { padding: 20px; }
+      .stat-bar { grid-template-columns: 1fr 1fr; }
+      .form-row, .form-row-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <span class="header-brand">Physio<span>OnWheels</span> Admin</span>
+  <div class="header-right">
+    <a href="/" target="_blank" class="btn-viewsite">View Site</a>
+    <a href="/admin/logout">Sign Out</a>
+  </div>
+</header>
+
+<div class="admin-layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-section">Overview</div>
+    <button class="tab-btn" id="btn-bookings" onclick="showTab('bookings')"><span class="tab-icon">📋</span>Bookings</button>
+
+    <div class="sidebar-section">Content</div>
+    <button class="tab-btn" id="btn-banner" onclick="showTab('banner')"><span class="tab-icon">📢</span>Banner</button>
+    <button class="tab-btn" id="btn-content" onclick="showTab('content')"><span class="tab-icon">✏️</span>Page Text</button>
+    <button class="tab-btn" id="btn-services" onclick="showTab('services')"><span class="tab-icon">🏥</span>Services</button>
+    <button class="tab-btn" id="btn-pricing" onclick="showTab('pricing')"><span class="tab-icon">💰</span>Pricing</button>
+
+    <div class="sidebar-section">System</div>
+    <button class="tab-btn" id="btn-settings" onclick="showTab('settings')"><span class="tab-icon">⚙️</span>Settings</button>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="admin-main">
+
+    <!-- ══════════════════════════════════════ BOOKINGS ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-bookings">
+      <p class="page-title">Overview</p>
+      <h1 class="page-heading">Bookings</h1>
+
+      <!-- STATS -->
+      {% set total = bookings | length %}
+      {% set confirmed = bookings | selectattr('status', 'equalto', 'confirmed') | list | length %}
+      {% set completed = bookings | selectattr('status', 'equalto', 'completed') | list | length %}
+      {% set paid = bookings | selectattr('payment_status', 'equalto', 'paid') | list | length %}
+      <div class="stat-bar">
+        <div class="stat-box"><div class="stat-num">{{ total }}</div><div class="stat-label">Total</div></div>
+        <div class="stat-box"><div class="stat-num">{{ confirmed }}</div><div class="stat-label">Confirmed</div></div>
+        <div class="stat-box"><div class="stat-num">{{ completed }}</div><div class="stat-label">Completed</div></div>
+        <div class="stat-box"><div class="stat-num">{{ paid }}</div><div class="stat-label">Paid</div></div>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        {% if bookings %}
+        <div style="overflow-x: auto;">
+        <table class="bookings-table">
+          <thead>
+            <tr>
+              <th>Ref</th>
+              <th>Patient</th>
+              <th>Service</th>
+              <th>Date / Time</th>
+              <th>Price</th>
+              <th>Payment</th>
+              <th>Status</th>
+              <th>Update</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in bookings | sort(attribute='created_at', reverse=True) %}
+            <tr>
+              <td><span class="booking-ref">{{ b.id }}</span></td>
+              <td>
+                <div class="patient-name">{{ b.name }}</div>
+                <div class="patient-contact">{{ b.email }}</div>
+                {% if b.phone %}<div class="patient-contact">{{ b.phone }}</div>{% endif %}
+              </td>
+              <td style="color:var(--text-muted); max-width:140px;">{{ b.service }}</td>
+              <td style="white-space:nowrap;">
+                <div style="font-weight:600;">{{ b.date }}</div>
+                <div style="color:var(--muted); font-size:12px;">{{ b.time }}</div>
+              </td>
+              <td style="font-weight:700; color:var(--teal-xdark);">${{ b.price | int }}</td>
+              <td>
+                <span class="badge {% if b.payment_status == 'paid' %}badge-paid{% else %}badge-pending{% endif %}">
+                  {{ b.payment_status | title }}
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-{{ b.status }}">{{ b.status | title }}</span>
+              </td>
+              <td>
+                <form method="POST" action="/admin/bookings/{{ b.id }}/status" style="display:inline;">
+                  <select name="status" class="status-select">
+                    <option value="confirmed" {% if b.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="completed" {% if b.status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if b.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                  </select>
+                  <button type="submit" class="btn-update">Update</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="no-bookings">
+          <div class="icon">📅</div>
+          <p>No bookings yet.</p>
+          <p style="font-size:13px; margin-top:6px;">Once patients start booking online, they'll appear here.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ BANNER ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-banner">
+      <p class="page-title">Content</p>
+      <h1 class="page-heading">Site-Wide Banner</h1>
+      <div class="card">
+        <h2 class="card-title">Announcement Banner</h2>
+        <p class="card-desc">The banner appears below the navigation on every public page. Changes take effect immediately.</p>
+
+        <label class="field-label">Live Preview</label>
+        <div id="preview-box"
+             class="preview {% if c.banner.enabled %}preview-{{ c.banner.type }}{% else %}preview-off{% endif %}">
+          {% if c.banner.enabled %}{{ c.banner.message }}{% else %}Banner is currently off{% endif %}
+        </div>
+
+        <form method="POST" action="/admin/banner">
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label-text">
+                Banner enabled &nbsp;
+                <span class="badge {% if c.banner.enabled %}badge-on{% else %}badge-off{% endif %}">
+                  {% if c.banner.enabled %}ON{% else %}OFF{% endif %}
+                </span>
+              </div>
+              <div class="toggle-hint">Toggle to show or hide the banner across all pages.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="enabled" id="enabledToggle"
+                     {% if c.banner.enabled %}checked{% endif %}
+                     onchange="updateBannerPreview()">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <label class="field-label" for="banner-message">Message</label>
+          <textarea id="banner-message" name="message" rows="2"
+                    oninput="updateBannerPreview()">{{ c.banner.message }}</textarea>
+
+          <label class="field-label" for="banner-type">Style</label>
+          <select id="banner-type" name="type" onchange="updateBannerPreview()">
+            <option value="info"    {% if c.banner.type == 'info'    %}selected{% endif %}>Info (teal)</option>
+            <option value="warning" {% if c.banner.type == 'warning' %}selected{% endif %}>Warning (orange)</option>
+            <option value="promo"   {% if c.banner.type == 'promo'   %}selected{% endif %}>Promo (dark teal)</option>
+          </select>
+
+          <button type="submit" class="btn-save">Save Banner</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ CONTENT ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-content">
+      <p class="page-title">Content</p>
+      <h1 class="page-heading">Page Text</h1>
+      <form method="POST" action="/admin/content">
+
+        <!-- HERO -->
+        <div class="card">
+          <h2 class="card-title">Homepage Hero</h2>
+          <p class="card-desc">The large banner section at the top of the home page.</p>
+
+          <label class="field-label">Main Heading</label>
+          <input type="text" name="hero_title" value="{{ c.hero.title }}">
+
+          <label class="field-label">Subtitle</label>
+          <textarea name="hero_subtitle" rows="2">{{ c.hero.subtitle }}</textarea>
+
+          <label class="field-label">Tagline (pill text)</label>
+          <input type="text" name="hero_tagline" value="{{ c.hero.tagline }}">
+
+          <div class="form-row">
+            <div>
+              <label class="field-label">Primary Button Text</label>
+              <input type="text" name="hero_cta_book" value="{{ c.hero.cta_book }}">
+            </div>
+            <div>
+              <label class="field-label">Secondary Button Text</label>
+              <input type="text" name="hero_cta_services" value="{{ c.hero.cta_services }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- ABOUT -->
+        <div class="card">
+          <h2 class="card-title">About Page</h2>
+          <p class="card-desc">Text displayed on the About page and in footer descriptions.</p>
+
+          <label class="field-label">Page Heading</label>
+          <input type="text" name="about_heading" value="{{ c.about.heading }}">
+
+          <label class="field-label">Intro Paragraph (appears in hero)</label>
+          <textarea name="about_intro" rows="2">{{ c.about.intro }}</textarea>
+
+          <label class="field-label">Main Paragraph 1</label>
+          <textarea name="about_p1" rows="3">{{ c.about.paragraphs[0] if c.about.paragraphs | length > 0 else '' }}</textarea>
+
+          <label class="field-label">Main Paragraph 2</label>
+          <textarea name="about_p2" rows="3">{{ c.about.paragraphs[1] if c.about.paragraphs | length > 1 else '' }}</textarea>
+
+          <div class="form-row">
+            <div>
+              <label class="field-label">Therapist Name</label>
+              <input type="text" name="therapist_name" value="{{ c.about.therapist_name }}">
+            </div>
+            <div>
+              <label class="field-label">Therapist Title / Credentials</label>
+              <input type="text" name="therapist_title" value="{{ c.about.therapist_title }}">
+            </div>
+          </div>
+
+          <label class="field-label">Therapist Bio</label>
+          <textarea name="therapist_bio" rows="3">{{ c.about.therapist_bio }}</textarea>
+        </div>
+
+        <!-- CONTACT -->
+        <div class="card">
+          <h2 class="card-title">Contact Details</h2>
+          <p class="card-desc">Displayed in the footer, contact sections, and booking page.</p>
+
+          <div class="form-row">
+            <div>
+              <label class="field-label">Phone</label>
+              <input type="tel" name="contact_phone" value="{{ c.contact.phone }}">
+            </div>
+            <div>
+              <label class="field-label">Email</label>
+              <input type="email" name="contact_email" value="{{ c.contact.email }}">
+            </div>
+          </div>
+
+          <label class="field-label">Service Area</label>
+          <input type="text" name="contact_area" value="{{ c.contact.service_area }}">
+
+          <label class="field-label">Business Hours</label>
+          <input type="text" name="contact_hours" value="{{ c.contact.hours }}">
+        </div>
+
+        <button type="submit" class="btn-save">Save All Content</button>
+      </form>
+    </div>
+
+    <!-- ══════════════════════════════════════ SERVICES ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-services">
+      <p class="page-title">Content</p>
+      <h1 class="page-heading">Services</h1>
+      <div class="card">
+        <h2 class="card-title">Service Cards</h2>
+        <p class="card-desc">These cards appear on the Home and Services pages. Leave a Name blank to remove that service. You can add up to 10 services.</p>
+
+        <form method="POST" action="/admin/services">
+          {% set svc_count = [c.services | length, 8] | max %}
+          {% for i in range(svc_count) %}
+          {% set s = c.services[i] if i < c.services | length else {} %}
+          <div class="edit-row">
+            <p class="edit-row-header">Service {{ i + 1 }}</p>
+            <div class="form-row">
+              <div>
+                <label class="field-label">Name (leave blank to remove)</label>
+                <input type="text" name="svc_{{ i }}_name" value="{{ s.get('name', '') }}" placeholder="e.g. Initial Assessment">
+              </div>
+              <div>
+                <label class="field-label">Icon (emoji)</label>
+                <input type="text" name="svc_{{ i }}_icon" value="{{ s.get('icon', '') }}" placeholder="🏥" style="font-size:1.4rem;">
+              </div>
+            </div>
+            <label class="field-label">Short Description</label>
+            <textarea name="svc_{{ i }}_short" rows="2" placeholder="Brief description shown on service card…">{{ s.get('short', '') }}</textarea>
+            <label class="field-label">Duration</label>
+            <input type="text" name="svc_{{ i }}_duration" value="{{ s.get('duration', '') }}" placeholder="45 min" style="width:140px;">
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn-save">Save Services</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ PRICING ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-pricing">
+      <p class="page-title">Content</p>
+      <h1 class="page-heading">Pricing</h1>
+      <div class="card">
+        <h2 class="card-title">Session Prices</h2>
+        <p class="card-desc">Displayed on the Pricing page and in the booking form dropdown. Leave a Name blank to remove that entry. Prices are in NZD.</p>
+
+        <form method="POST" action="/admin/pricing">
+          {% set price_count = [c.pricing | length, 6] | max %}
+          {% for i in range(price_count) %}
+          {% set p = c.pricing[i] if i < c.pricing | length else {} %}
+          <div class="edit-row">
+            <p class="edit-row-header">Price {{ i + 1 }}</p>
+            <div class="form-row">
+              <div>
+                <label class="field-label">Service Name (leave blank to remove)</label>
+                <input type="text" name="price_{{ i }}_name" value="{{ p.get('name', '') }}" placeholder="e.g. Initial Assessment">
+              </div>
+              <div>
+                <label class="field-label">Price (NZD)</label>
+                <input type="number" name="price_{{ i }}_price" value="{{ p.get('price', '') }}" placeholder="120" min="0" step="1">
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label class="field-label">Duration</label>
+                <input type="text" name="price_{{ i }}_duration" value="{{ p.get('duration', '') }}" placeholder="60 min">
+              </div>
+              <div>
+                <label class="field-label">Description</label>
+                <input type="text" name="price_{{ i }}_description" value="{{ p.get('description', '') }}" placeholder="What's included…">
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn-save">Save Pricing</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ SETTINGS ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-settings">
+      <p class="page-title">System</p>
+      <h1 class="page-heading">Settings</h1>
+
+      <form method="POST" action="/admin/settings">
+        <!-- PAYMENT TOGGLE -->
+        <div class="card">
+          <h2 class="card-title">Online Payment</h2>
+          <p class="card-desc">
+            Controls whether the credit card form is active on the booking page. When disabled, the card fields are greyed out and non-interactive — patients can still submit a booking request, and you'll contact them to arrange payment separately.
+          </p>
+
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label-text">
+                Credit card payment &nbsp;
+                <span class="badge {% if c.settings.payment_enabled %}badge-on{% else %}badge-off{% endif %}">
+                  {% if c.settings.payment_enabled %}ENABLED{% else %}DISABLED{% endif %}
+                </span>
+              </div>
+              <div class="toggle-hint">When off: card fields are greyed out. Button reads "Request Booking" instead of "Pay".</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="payment_enabled"
+                     {% if c.settings.payment_enabled %}checked{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div style="background: var(--teal-pale); border: 1px solid var(--teal-100); border-radius: 6px; padding: 16px 18px; font-family: Arial, sans-serif; font-size: 13px; color: var(--muted); line-height: 1.7;">
+            <strong style="color: var(--teal-dark);">Note:</strong> This is a demo payment system. No real charges are made. When payment is enabled, bookings are marked as "Paid" automatically. When disabled, bookings are marked as "Pending" and you arrange payment directly with the patient.
+          </div>
+        </div>
+
+        <!-- BOOKING TOGGLE -->
+        <div class="card">
+          <h2 class="card-title">Online Booking</h2>
+          <p class="card-desc">
+            Controls whether the booking form is accessible. When disabled, patients visiting /booking see a message directing them to call or email instead.
+          </p>
+
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label-text">
+                Online booking &nbsp;
+                <span class="badge {% if c.settings.booking_enabled %}badge-on{% else %}badge-off{% endif %}">
+                  {% if c.settings.booking_enabled %}ENABLED{% else %}DISABLED{% endif %}
+                </span>
+              </div>
+              <div class="toggle-hint">When off: the booking page shows a "call us" message instead of the form.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="booking_enabled"
+                     {% if c.settings.booking_enabled %}checked{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-save">Save Settings</button>
+      </form>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Tab switching
+  function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const content = document.getElementById('tab-' + name);
+    const btn     = document.getElementById('btn-' + name);
+    if (content) content.classList.add('active');
+    if (btn) btn.classList.add('active');
+    history.replaceState(null, '', '#' + name);
+  }
+
+  // Auto-open tab from URL hash
+  window.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash.slice(1);
+    if (hash && document.getElementById('tab-' + hash)) {
+      showTab(hash);
+    } else {
+      showTab('bookings');
+    }
+  });
+
+  // Live banner preview
+  function updateBannerPreview() {
+    const box     = document.getElementById('preview-box');
+    const enabled = document.getElementById('enabledToggle').checked;
+    const message = document.getElementById('banner-message').value.trim();
+    const type    = document.getElementById('banner-type').value;
+
+    box.className = 'preview';
+    if (!enabled) {
+      box.classList.add('preview-off');
+      box.textContent = 'Banner is currently off';
+    } else {
+      box.classList.add('preview-' + type);
+      box.textContent = message || '(no message entered)';
+    }
+  }
+</script>
+
+</body>
+</html>

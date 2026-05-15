@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}PhysioOnWheels — Home Physiotherapy Auckland{% endblock %}
+
+{% block head %}
+<style>
+  /* HERO */
+  .hero-section {
+    background: linear-gradient(135deg, #134e4a 0%, #0d9488 60%, #0f766e 100%);
+    padding: 90px 28px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-blob-1 {
+    position: absolute; right: -60px; top: -80px;
+    width: 420px; height: 420px;
+    background: rgba(255,255,255,0.05); border-radius: 50%;
+  }
+  .hero-blob-2 {
+    position: absolute; left: -40px; bottom: -60px;
+    width: 260px; height: 260px;
+    background: rgba(255,255,255,0.04); border-radius: 50%;
+  }
+  .hero-blob-3 {
+    position: absolute; right: 120px; bottom: -30px;
+    width: 180px; height: 180px;
+    background: rgba(255,255,255,0.04); border-radius: 50%;
+  }
+  .hero-inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 60px;
+    align-items: center;
+    position: relative;
+  }
+  .hero-text { max-width: 640px; }
+  .hero-pill {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    color: #99f6e4;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 18px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+  }
+  .hero-title {
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    color: #fff;
+    line-height: 1.15;
+    margin-bottom: 22px;
+  }
+  .hero-sub {
+    font-family: Arial, sans-serif;
+    font-size: clamp(0.95rem, 2vw, 1.1rem);
+    color: #99f6e4;
+    line-height: 1.8;
+    margin-bottom: 40px;
+  }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+  .hero-img { width: 300px; opacity: 0.92; }
+
+  /* TRUST BAR */
+  .trust-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 28px;
+  }
+  .trust-items {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    flex-wrap: wrap;
+  }
+  .trust-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .trust-item span:first-child { font-size: 1.3rem; }
+
+  /* SERVICES GRID */
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+  .service-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--teal);
+    border-radius: 6px;
+    padding: 28px 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .service-card:hover { box-shadow: 0 8px 32px rgba(13,148,136,0.12); transform: translateY(-2px); }
+  .service-icon { font-size: 2rem; margin-bottom: 14px; }
+  .service-name { font-size: 1rem; color: var(--teal-dark); margin-bottom: 10px; }
+  .service-desc {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    margin: 0 0 12px;
+  }
+  .service-dur {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    color: var(--teal);
+    font-weight: 700;
+  }
+
+  /* HOW IT WORKS */
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+  .step { text-align: center; }
+  .step-num {
+    width: 56px; height: 56px;
+    background: var(--teal);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Georgia, serif;
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin: 0 auto 18px;
+  }
+  .step h3 { color: var(--teal-dark); font-size: 1.05rem; margin-bottom: 10px; }
+  .step p { font-family: Arial, sans-serif; font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+
+  /* WHO WE HELP */
+  .conditions-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 40px;
+  }
+  .condition-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .condition-item::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: var(--teal);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 900px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .hero-img { display: none; }
+    .steps-grid { grid-template-columns: 1fr; gap: 24px; }
+    .conditions-list { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .hero-section { padding: 60px 20px; }
+    .trust-items { gap: 24px; }
+    section { padding-left: 20px !important; padding-right: 20px !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<section class="hero-section">
+  <div class="hero-blob-1"></div>
+  <div class="hero-blob-2"></div>
+  <div class="hero-blob-3"></div>
+  <div class="container hero-inner">
+    <div class="hero-text">
+      <span class="hero-pill">{{ c.hero.tagline }}</span>
+      <h1 class="hero-title">{{ c.hero.title }}</h1>
+      <p class="hero-sub">{{ c.hero.subtitle }}</p>
+      <div class="hero-ctas">
+        <a href="/booking" class="btn btn-coral">{{ c.hero.cta_book }}</a>
+        <a href="/services" class="btn btn-outline">{{ c.hero.cta_services }}</a>
+      </div>
+    </div>
+    <img src="/content/images/hero-art.svg" alt="PhysioOnWheels home visit illustration" class="hero-img">
+  </div>
+</section>
+
+<!-- TRUST BAR -->
+<div class="trust-bar">
+  <div class="trust-items">
+    <div class="trust-item"><span>🏠</span><span>Home Visits</span></div>
+    <div class="trust-item"><span>👤</span><span>One-on-One Care</span></div>
+    <div class="trust-item"><span>📋</span><span>No Referral Needed</span></div>
+    <div class="trust-item"><span>📞</span><span>{{ c.contact.phone }}</span></div>
+  </div>
+</div>
+
+<!-- SERVICES -->
+<section style="padding: 72px 28px; background: var(--cream);">
+  <div class="container">
+    <p class="label">What We Offer</p>
+    <h2 style="font-size: clamp(1.4rem, 3.5vw, 2rem); color: var(--teal-dark); margin-bottom: 12px;">Our Services</h2>
+    <p style="font-family: Arial, sans-serif; font-size: 15px; color: var(--text-muted); max-width: 580px; margin-bottom: 48px; line-height: 1.7;">
+      We bring the full range of physiotherapy to your home — from initial assessment through to ongoing rehabilitation.
+    </p>
+    <div class="services-grid">
+      {% for s in c.services %}
+      <div class="service-card">
+        <div class="service-icon">{{ s.icon }}</div>
+        <h3 class="service-name">{{ s.name }}</h3>
+        <p class="service-desc">{{ s.short }}</p>
+        <p class="service-dur">⏱ {{ s.duration }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="text-align:center; margin-top:40px;">
+      <a href="/services" class="btn btn-outline-teal">View All Services</a>
+    </div>
+  </div>
+</section>
+
+<!-- WHO WE HELP -->
+<section style="padding: 72px 28px; background: var(--white);">
+  <div class="container" style="display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center;">
+    <div>
+      <p class="label">Who We Help</p>
+      <h2 style="font-size: clamp(1.3rem, 3vw, 1.9rem); color: var(--teal-dark); margin-bottom: 20px;">Care for a Range of Conditions</h2>
+      <p style="font-family: Arial, sans-serif; font-size: 15px; color: var(--text-muted); line-height: 1.8; margin-bottom: 28px;">
+        Whether you're recovering from surgery or managing a long-term condition, our physiotherapists have the expertise to help you move better and feel better.
+      </p>
+      <a href="/booking" class="btn btn-teal">Book an Assessment</a>
+    </div>
+    <div class="conditions-list">
+      <div class="condition-item">Post-surgical recovery</div>
+      <div class="condition-item">Stroke rehabilitation</div>
+      <div class="condition-item">Chronic back & neck pain</div>
+      <div class="condition-item">Parkinson's disease</div>
+      <div class="condition-item">Falls & balance issues</div>
+      <div class="condition-item">Multiple sclerosis</div>
+      <div class="condition-item">Joint replacements</div>
+      <div class="condition-item">Arthritis management</div>
+      <div class="condition-item">Sports injuries</div>
+      <div class="condition-item">Respiratory conditions</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section style="padding: 72px 28px; background: var(--teal-pale);">
+  <div class="container">
+    <p class="label" style="text-align:center;">Simple Process</p>
+    <h2 style="font-size: clamp(1.3rem, 3vw, 1.9rem); color: var(--teal-dark); text-align:center; margin-bottom: 52px;">How It Works</h2>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Book Online or Call</h3>
+        <p>Choose your service and a time that suits you. We'll confirm your appointment and let you know what to expect.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>We Come to You</h3>
+        <p>Your physiotherapist arrives at your home with all necessary equipment — no travel, no waiting rooms.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Progress Together</h3>
+        <p>We assess, treat, and build a personalised plan. Regular sessions ensure you're progressing toward your goals.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA STRIP -->
+<section style="background: var(--teal-xdark); padding: 64px 28px; text-align:center;">
+  <div class="container">
+    <h2 style="color:#fff; font-size: clamp(1.3rem, 3vw, 2rem); margin-bottom: 16px;">Ready to Start Your Recovery?</h2>
+    <p style="font-family: Arial, sans-serif; color: #99f6e4; font-size: 16px; margin-bottom: 36px; max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.7;">
+      Book a session today or call us to discuss your needs. No referral required.
+    </p>
+    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+      <a href="/booking" class="btn btn-coral">Book a Session</a>
+      <a href="tel:{{ c.contact.phone }}" class="btn btn-outline">Call {{ c.contact.phone }}</a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

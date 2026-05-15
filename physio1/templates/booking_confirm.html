@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Booking Confirmed — PhysioOnWheels{% endblock %}
+
+{% block head %}
+<style>
+  .confirm-wrap {
+    max-width: 680px;
+    margin: 64px auto;
+    padding: 0 28px;
+  }
+  .confirm-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 32px rgba(13,148,136,0.1);
+  }
+  .confirm-header {
+    background: linear-gradient(135deg, #134e4a, #0d9488);
+    padding: 40px 36px;
+    text-align: center;
+    color: #fff;
+  }
+  .confirm-tick {
+    width: 72px; height: 72px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    margin: 0 auto 20px;
+  }
+  .confirm-header h1 { font-size: 1.8rem; margin-bottom: 8px; }
+  .confirm-header p { font-family: Arial, sans-serif; font-size: 15px; color: #99f6e4; }
+  .ref-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+    padding: 6px 20px;
+    margin-top: 16px;
+    letter-spacing: 3px;
+  }
+
+  .confirm-body { padding: 36px; }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .detail-item {
+    background: var(--teal-pale);
+    border: 1px solid var(--teal-100);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+  .detail-label {
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 6px;
+  }
+  .detail-val { font-size: 1rem; color: var(--teal-xdark); font-weight: 600; }
+
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-paid    { background: #d1fae5; color: #065f46; }
+  .badge-pending { background: #fef3c7; color: #92400e; }
+  .badge-confirmed { background: #dbeafe; color: #1e40af; }
+
+  .next-steps {
+    background: var(--cream);
+    border-radius: 6px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .next-steps h3 { color: var(--teal-dark); margin-bottom: 14px; font-size: 1rem; }
+  .next-steps ol {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.8;
+    padding-left: 18px;
+  }
+  .next-steps ol li { margin-bottom: 6px; }
+
+  @media (max-width: 600px) {
+    .confirm-wrap { margin: 32px auto; padding: 0 16px; }
+    .confirm-header { padding: 28px 20px; }
+    .confirm-body { padding: 24px 20px; }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="background: var(--cream); min-height: 80vh; padding-bottom: 60px;">
+<div class="confirm-wrap">
+  <div class="confirm-card">
+
+    <!-- HEADER -->
+    <div class="confirm-header">
+      <div class="confirm-tick">✓</div>
+      <h1>
+        {% if booking.payment_status == 'paid' %}Booking Confirmed & Paid{% else %}Booking Request Received{% endif %}
+      </h1>
+      <p>
+        {% if booking.payment_status == 'paid' %}
+          Your session is booked and your payment has been processed.
+        {% else %}
+          We'll be in touch to confirm your appointment and arrange payment.
+        {% endif %}
+      </p>
+      <div class="ref-badge">REF: {{ booking.id }}</div>
+    </div>
+
+    <!-- BODY -->
+    <div class="confirm-body">
+
+      <!-- DETAILS GRID -->
+      <div class="detail-grid">
+        <div class="detail-item">
+          <p class="detail-label">Patient</p>
+          <p class="detail-val">{{ booking.name }}</p>
+        </div>
+        <div class="detail-item">
+          <p class="detail-label">Service</p>
+          <p class="detail-val">{{ booking.service }}</p>
+        </div>
+        <div class="detail-item">
+          <p class="detail-label">Date</p>
+          <p class="detail-val">{{ booking.date }}</p>
+        </div>
+        <div class="detail-item">
+          <p class="detail-label">Time</p>
+          <p class="detail-val">{{ booking.time }}</p>
+        </div>
+        <div class="detail-item">
+          <p class="detail-label">Amount</p>
+          <p class="detail-val">${{ booking.price | int }} NZD</p>
+        </div>
+        <div class="detail-item">
+          <p class="detail-label">Status</p>
+          <p class="detail-val">
+            <span class="status-badge badge-confirmed">{{ booking.status | title }}</span>
+            &nbsp;
+            <span class="status-badge {% if booking.payment_status == 'paid' %}badge-paid{% else %}badge-pending{% endif %}">
+              {{ booking.payment_status | title }}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <!-- NEXT STEPS -->
+      <div class="next-steps">
+        <h3>What Happens Next</h3>
+        <ol>
+          <li>You'll receive a confirmation email at <strong>{{ booking.email }}</strong>.</li>
+          <li>Your physiotherapist will contact you before your session to confirm details and your address.</li>
+          <li>On the day, they'll arrive with all necessary equipment — just have a comfortable space ready.</li>
+          {% if booking.payment_status == 'pending' %}
+          <li>We'll be in touch to arrange payment prior to your session.</li>
+          {% endif %}
+        </ol>
+      </div>
+
+      <!-- ACTIONS -->
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <a href="/" class="btn btn-teal">Back to Home</a>
+        <a href="/booking" class="btn btn-outline-teal">Book Another Session</a>
+      </div>
+
+      <p style="font-family:Arial,sans-serif; font-size:13px; color:var(--text-muted); margin-top:20px;">
+        Need to cancel or reschedule? Call us on
+        <a href="tel:{{ c.contact.phone }}" style="color:var(--teal); font-weight:700;">{{ c.contact.phone }}</a>
+        or email <a href="mailto:{{ c.contact.email }}" style="color:var(--teal); font-weight:700;">{{ c.contact.email }}</a>.
+      </p>
+
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

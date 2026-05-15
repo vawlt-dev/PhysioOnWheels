@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+
+{% block title %}Book a Session — PhysioOnWheels{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    background: linear-gradient(135deg, #134e4a 0%, #0d9488 100%);
+    padding: 52px 28px;
+    text-align: center;
+    color: #fff;
+  }
+  .page-hero h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); margin-bottom: 12px; }
+  .page-hero p { font-family: Arial, sans-serif; font-size: 15px; color: #99f6e4; max-width: 480px; margin: 0 auto; line-height: 1.7; }
+
+  /* LAYOUT */
+  .booking-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 40px;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 52px 28px;
+  }
+
+  /* FORM CARD */
+  .form-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 36px;
+  }
+  .form-section { margin-bottom: 32px; }
+  .form-section-title {
+    font-size: 1rem;
+    color: var(--teal-dark);
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--teal-pale);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-num {
+    width: 26px; height: 26px;
+    background: var(--teal);
+    color: #fff;
+    border-radius: 50%;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { margin-bottom: 16px; }
+  label.field-label {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text);
+    display: block;
+    margin-bottom: 7px;
+  }
+  .required-star { color: var(--coral); }
+  input[type="text"], input[type="email"], input[type="tel"],
+  input[type="date"], select, textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--white);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(13,148,136,0.12);
+  }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230d9488' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* TIMESLOTS */
+  #slot-loading { font-family: Arial, sans-serif; font-size: 13px; color: var(--text-muted); padding: 8px 0; display: none; }
+  #slot-none { font-family: Arial, sans-serif; font-size: 13px; color: #e05000; padding: 8px 0; display: none; }
+
+  /* PAYMENT SECTION */
+  .payment-box {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .payment-header {
+    background: var(--teal-pale);
+    border-bottom: 1px solid var(--teal-100);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--teal-dark);
+  }
+  .payment-body { padding: 20px 18px; }
+
+  .card-field-group { position: relative; }
+  .card-brand-icons {
+    position: absolute;
+    right: 12px; top: 50%;
+    transform: translateY(-50%);
+    display: flex; gap: 4px;
+    pointer-events: none;
+  }
+  .card-brand-icons span {
+    font-size: 11px;
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 5px;
+    font-family: Arial, sans-serif;
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+
+  .payment-disabled-msg {
+    display: none;
+    background: #f8fafc;
+    border: 2px dashed var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .payment-disabled-msg p:first-child { font-size: 1.4rem; margin-bottom: 8px; }
+  .payment-disabled-msg p:last-child {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .ssl-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 14px;
+  }
+
+  /* SUBMIT */
+  .btn-submit {
+    width: 100%;
+    padding: 15px;
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+    letter-spacing: 0.3px;
+  }
+  .btn-submit:hover { background: var(--teal-dark); }
+
+  /* SUMMARY SIDEBAR */
+  .summary-card {
+    background: var(--teal-xdark);
+    border-radius: 8px;
+    padding: 28px;
+    color: #fff;
+    position: sticky;
+    top: 88px;
+  }
+  .summary-title {
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--teal-light);
+    margin-bottom: 20px;
+    font-family: Arial, sans-serif;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+  }
+  .summary-row:last-of-type { border-bottom: none; }
+  .summary-label { color: #99f6e4; flex-shrink: 0; }
+  .summary-val { color: #fff; font-weight: 600; text-align: right; }
+  .summary-price {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #fff;
+    margin: 20px 0 4px;
+    text-align: center;
+  }
+  .summary-price-label { font-family: Arial, sans-serif; font-size: 12px; color: #99f6e4; text-align: center; margin-bottom: 20px; }
+  .summary-note {
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    padding: 12px 14px;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    color: #99f6e4;
+    line-height: 1.6;
+  }
+
+  .error-banner {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #b91c1c;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 860px) {
+    .booking-layout { grid-template-columns: 1fr; }
+    .summary-card { position: static; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .booking-layout { padding: 32px 16px; }
+    .form-card { padding: 24px 18px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section class="page-hero">
+  <p class="label" style="color:#5eead4; justify-content:center; display:flex;">Online Booking</p>
+  <h1>Book a Session</h1>
+  <p>Choose your service and a time that suits you. We'll confirm your appointment by email.</p>
+</section>
+
+<div style="background: var(--cream); min-height: 60vh;">
+<div class="booking-layout">
+
+  <!-- FORM -->
+  <div>
+    {% if request.args.get('error') %}
+    <div class="error-banner">Please fill in all required fields before submitting.</div>
+    {% endif %}
+
+    <form method="POST" action="/booking" id="booking-form" onsubmit="return validateForm()">
+
+      <!-- 1. SERVICE -->
+      <div class="form-card form-section">
+        <h2 class="form-section-title">
+          <span class="section-num">1</span> Choose Your Service
+        </h2>
+        <div class="form-group">
+          <label class="field-label" for="service">Service <span class="required-star">*</span></label>
+          <select name="service" id="service" required onchange="updateSummary()">
+            <option value="">-- Select a service --</option>
+            {% for p in c.pricing %}
+            <option value="{{ p.name }}" data-price="{{ p.price }}" data-dur="{{ p.duration }}">
+              {{ p.name }} — ${{ p.price | int }} ({{ p.duration }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- 2. DATE & TIME -->
+      <div class="form-card form-section">
+        <h2 class="form-section-title">
+          <span class="section-num">2</span> Select Date &amp; Time
+        </h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="field-label" for="date">Date <span class="required-star">*</span></label>
+            <input type="date" name="date" id="date" required onchange="loadSlots()" min="">
+          </div>
+          <div class="form-group">
+            <label class="field-label" for="time_slot">Time <span class="required-star">*</span></label>
+            <select name="time_slot" id="time_slot" required onchange="updateSummary()">
+              <option value="">-- Select a date first --</option>
+            </select>
+            <p id="slot-loading">Loading available times…</p>
+            <p id="slot-none">No times available on this date. Please choose another day.</p>
+          </div>
+        </div>
+        <p style="font-family:Arial,sans-serif; font-size:12px; color:var(--text-muted);">
+          Available Mon–Sat · {{ c.contact.hours }}
+        </p>
+      </div>
+
+      <!-- 3. YOUR DETAILS -->
+      <div class="form-card form-section">
+        <h2 class="form-section-title">
+          <span class="section-num">3</span> Your Details
+        </h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="field-label" for="name">Full Name <span class="required-star">*</span></label>
+            <input type="text" name="name" id="name" placeholder="Jane Smith" required>
+          </div>
+          <div class="form-group">
+            <label class="field-label" for="phone">Phone Number</label>
+            <input type="tel" name="phone" id="phone" placeholder="021 000 0000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="field-label" for="email">Email Address <span class="required-star">*</span></label>
+          <input type="email" name="email" id="email" placeholder="jane@example.com" required>
+        </div>
+        <div class="form-group">
+          <label class="field-label" for="notes">Notes for Your Physiotherapist</label>
+          <textarea name="notes" id="notes" placeholder="Brief description of your condition, any relevant history, access requirements…"></textarea>
+        </div>
+      </div>
+
+      <!-- 4. PAYMENT -->
+      <div class="form-card form-section" style="margin-bottom:0;">
+        <h2 class="form-section-title">
+          <span class="section-num">4</span> Payment
+        </h2>
+
+        <div id="payment-disabled-msg" class="payment-disabled-msg">
+          <p>🔒</p>
+          <p>Online payment is temporarily unavailable. We will contact you to arrange payment after your booking is confirmed.</p>
+        </div>
+
+        <div class="payment-box" id="card-box">
+          <div class="payment-header">
+            💳 Card Details
+            <span style="margin-left:auto; display:flex; gap:6px;">
+              <span style="background:#1a1f71; color:#fff; font-family:Arial,sans-serif; font-size:10px; font-weight:700; padding:2px 7px; border-radius:3px;">VISA</span>
+              <span style="background:#eb001b; color:#fff; font-family:Arial,sans-serif; font-size:10px; font-weight:700; padding:2px 7px; border-radius:3px; position:relative;">MC</span>
+            </span>
+          </div>
+          <div class="payment-body">
+            <div class="form-group card-field-group">
+              <label class="field-label" for="card_number">Card Number</label>
+              <input type="text" id="card_number" name="card_number" placeholder="1234 5678 9012 3456" maxlength="19" autocomplete="cc-number" style="padding-right:80px;">
+              <div class="card-brand-icons">
+                <span>VISA</span><span>MC</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="field-label" for="card_expiry">Expiry Date</label>
+                <input type="text" id="card_expiry" name="card_expiry" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp">
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="card_cvc">CVC</label>
+                <input type="text" id="card_cvc" name="card_cvc" placeholder="123" maxlength="3" autocomplete="cc-csc">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="field-label" for="card_name">Cardholder Name</label>
+              <input type="text" id="card_name" name="card_name" placeholder="Name as it appears on card" autocomplete="cc-name">
+            </div>
+          </div>
+        </div>
+
+        <div id="ssl-badge" class="ssl-badge">
+          🔒 <span>256-bit SSL encryption. Your payment information is secure and never stored on our servers.</span>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submit-btn">Pay &amp; Confirm Booking</button>
+        <p style="font-family:Arial,sans-serif; font-size:12px; color:var(--text-muted); text-align:center; margin-top:12px;">
+          By booking you agree to our cancellation policy. Prices in NZD.
+        </p>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- SIDEBAR SUMMARY -->
+  <div>
+    <div class="summary-card">
+      <p class="summary-title">Booking Summary</p>
+
+      <div class="summary-price" id="summary-price">$—</div>
+      <p class="summary-price-label" id="summary-dur">Select a service above</p>
+
+      <div class="summary-row">
+        <span class="summary-label">Service</span>
+        <span class="summary-val" id="summary-service">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Date</span>
+        <span class="summary-val" id="summary-date">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Time</span>
+        <span class="summary-val" id="summary-time">—</span>
+      </div>
+
+      <div style="margin-top:20px;" class="summary-note">
+        🏠 Your physiotherapist will come directly to your home. Make sure to include your address in the notes field if it's not on your account.
+      </div>
+
+      <div style="margin-top:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.1);">
+        <p style="font-family:Arial,sans-serif; font-size:13px; color:#99f6e4; margin-bottom:8px;">Questions?</p>
+        <a href="tel:{{ c.contact.phone }}" style="font-family:Arial,sans-serif; font-size:14px; font-weight:700; color:#fff; text-decoration:none;">
+          📞 {{ c.contact.phone }}
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const PAYMENT_ENABLED = {{ 'true' if c.settings.payment_enabled else 'false' }};
+  const PRICING = {{ c.pricing | tojson }};
+
+  // Set min date to today
+  (function() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('date').min =
+      d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  })();
+
+  // Apply payment enabled/disabled state
+  function applyPaymentState() {
+    const cardBox     = document.getElementById('card-box');
+    const disabledMsg = document.getElementById('payment-disabled-msg');
+    const sslBadge    = document.getElementById('ssl-badge');
+    const submitBtn   = document.getElementById('submit-btn');
+    const cardInputs  = cardBox.querySelectorAll('input');
+
+    if (!PAYMENT_ENABLED) {
+      cardBox.style.opacity = '0.45';
+      cardBox.style.pointerEvents = 'none';
+      cardInputs.forEach(i => { i.disabled = true; i.required = false; });
+      disabledMsg.style.display = 'block';
+      sslBadge.style.display = 'none';
+      submitBtn.textContent = 'Request Booking';
+      submitBtn.style.background = 'var(--teal-dark)';
+    }
+  }
+  applyPaymentState();
+
+  // Load available time slots for selected date
+  function loadSlots() {
+    const dateVal = document.getElementById('date').value;
+    const slotSel = document.getElementById('time_slot');
+    const loading = document.getElementById('slot-loading');
+    const none    = document.getElementById('slot-none');
+
+    slotSel.innerHTML = '<option value="">Loading…</option>';
+    loading.style.display = 'block';
+    none.style.display = 'none';
+    updateSummary();
+
+    fetch('/api/slots?date=' + encodeURIComponent(dateVal))
+      .then(r => r.json())
+      .then(slots => {
+        loading.style.display = 'none';
+        slotSel.innerHTML = '';
+        if (slots.length === 0) {
+          slotSel.innerHTML = '<option value="">No times available</option>';
+          none.style.display = 'block';
+        } else {
+          slotSel.innerHTML = '<option value="">-- Select a time --</option>';
+          slots.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.value;
+            opt.textContent = s.label;
+            slotSel.appendChild(opt);
+          });
+        }
+      })
+      .catch(() => {
+        loading.style.display = 'none';
+        slotSel.innerHTML = '<option value="">Error loading times</option>';
+      });
+  }
+
+  // Update the booking summary sidebar
+  function updateSummary() {
+    const serviceEl = document.getElementById('service');
+    const dateEl    = document.getElementById('date');
+    const timeEl    = document.getElementById('time_slot');
+
+    const selectedOpt = serviceEl.options[serviceEl.selectedIndex];
+    const price = selectedOpt && selectedOpt.dataset.price ? parseFloat(selectedOpt.dataset.price) : null;
+    const dur   = selectedOpt && selectedOpt.dataset.dur ? selectedOpt.dataset.dur : '';
+
+    document.getElementById('summary-service').textContent = serviceEl.value || '—';
+    document.getElementById('summary-price').textContent   = price !== null ? '$' + price.toFixed(0) : '$—';
+    document.getElementById('summary-dur').textContent     = dur || 'Select a service above';
+
+    if (dateEl.value) {
+      const d = new Date(dateEl.value + 'T00:00:00');
+      document.getElementById('summary-date').textContent =
+        d.toLocaleDateString('en-NZ', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    } else {
+      document.getElementById('summary-date').textContent = '—';
+    }
+
+    const timeOpt = timeEl.options[timeEl.selectedIndex];
+    document.getElementById('summary-time').textContent =
+      (timeOpt && timeOpt.value) ? timeOpt.textContent : '—';
+  }
+
+  // Card number formatting (XXXX XXXX XXXX XXXX)
+  document.getElementById('card_number').addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 16);
+    e.target.value = v.replace(/(.{4})/g, '$1 ').trim();
+  });
+
+  // Expiry formatting (MM / YY)
+  document.getElementById('card_expiry').addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+    if (v.length > 2) v = v.slice(0, 2) + ' / ' + v.slice(2);
+    e.target.value = v;
+  });
+
+  // CVC: digits only
+  document.getElementById('card_cvc').addEventListener('input', function(e) {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 3);
+  });
+
+  // Form validation
+  function validateForm() {
+    const service  = document.getElementById('service').value;
+    const date     = document.getElementById('date').value;
+    const timeSlot = document.getElementById('time_slot').value;
+    const name     = document.getElementById('name').value.trim();
+    const email    = document.getElementById('email').value.trim();
+
+    if (!service || !date || !timeSlot || !name || !email) {
+      alert('Please fill in all required fields (service, date, time, name, email).');
+      return false;
+    }
+
+    if (PAYMENT_ENABLED) {
+      const num  = document.getElementById('card_number').value.replace(/\s/g, '');
+      const exp  = document.getElementById('card_expiry').value;
+      const cvc  = document.getElementById('card_cvc').value;
+      const cnam = document.getElementById('card_name').value.trim();
+      if (num.length < 16 || !exp || cvc.length < 3 || !cnam) {
+        alert('Please complete your card details.');
+        return false;
+      }
+    }
+    return true;
+  }
+</script>
+{% endblock %}

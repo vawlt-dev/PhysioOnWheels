@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — PhysioOnWheels</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:       #0d9488;
+      --teal-dark:  #0f766e;
+      --teal-xdark: #134e4a;
+      --teal-pale:  #f0fdfa;
+      --teal-100:   #ccfbf1;
+      --border:     #e2e8f0;
+      --text:       #1e293b;
+      --muted:      #64748b;
+    }
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      background: linear-gradient(135deg, #134e4a 0%, #0d9488 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .login-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 44px 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .brand {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .brand-name {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: var(--teal-dark);
+    }
+    .brand-name span { color: #f97316; }
+    .brand-sub {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    label {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text);
+      display: block;
+      margin-bottom: 7px;
+    }
+    input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      margin-bottom: 18px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
+    .btn-login {
+      width: 100%;
+      padding: 13px;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: background 0.2s;
+    }
+    .btn-login:hover { background: var(--teal-dark); }
+    .error-msg {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 4px;
+      padding: 11px 14px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: #b91c1c;
+      margin-bottom: 18px;
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 18px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .back-link:hover { color: var(--teal); }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-name">Physio<span>OnWheels</span></div>
+      <div class="brand-sub">Admin Panel</div>
+    </div>
+    {% if error %}
+    <div class="error-msg">{{ error }}</div>
+    {% endif %}
+    <form method="POST" action="/admin/login">
+      <label for="username">Username</label>
+      <input type="text" name="username" id="username" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input type="password" name="password" id="password" autocomplete="current-password" required>
+      <button type="submit" class="btn-login">Sign In</button>
+    </form>
+    <a href="/" class="back-link">← Back to website</a>
+  </div>
+</body>
+</html>

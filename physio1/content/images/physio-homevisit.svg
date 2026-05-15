@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <rect width="300" height="300" fill="#f0fdfa" rx="16"/>
+  <!-- Road/path -->
+  <rect x="0" y="240" width="300" height="60" fill="#e2e8f0"/>
+  <rect x="135" y="245" width="30" height="10" fill="#94a3b8" rx="2"/>
+  <rect x="135" y="262" width="30" height="10" fill="#94a3b8" rx="2"/>
+  <!-- Car (simple) -->
+  <rect x="30" y="210" width="90" height="40" fill="#0d9488" rx="8"/>
+  <rect x="45" y="198" width="60" height="22" fill="#5eead4" rx="5"/>
+  <!-- Windows -->
+  <rect x="50" y="201" width="22" height="15" fill="#ccfbf1" rx="2"/>
+  <rect x="78" y="201" width="22" height="15" fill="#ccfbf1" rx="2"/>
+  <!-- Wheels -->
+  <circle cx="55" cy="252" r="12" fill="#1e293b"/>
+  <circle cx="55" cy="252" r="5" fill="#64748b"/>
+  <circle cx="105" cy="252" r="12" fill="#1e293b"/>
+  <circle cx="105" cy="252" r="5" fill="#64748b"/>
+  <!-- Medical cross on car -->
+  <rect x="68" y="218" width="5" height="14" fill="#fff" rx="1"/>
+  <rect x="63" y="223" width="14" height="5" fill="#fff" rx="1"/>
+  <!-- Person at door -->
+  <circle cx="215" cy="145" r="14" fill="#5eead4"/>
+  <rect x="205" y="160" width="20" height="35" fill="#0d9488" rx="4"/>
+  <line x1="205" y1="168" x2="192" y2="182" stroke="#0d9488" stroke-width="7" stroke-linecap="round"/>
+  <line x1="225" y1="168" x2="230" y2="182" stroke="#0d9488" stroke-width="7" stroke-linecap="round"/>
+  <line x1="210" y1="195" x2="207" y2="230" stroke="#0d9488" stroke-width="7" stroke-linecap="round"/>
+  <line x1="220" y1="195" x2="223" y2="230" stroke="#0d9488" stroke-width="7" stroke-linecap="round"/>
+  <!-- Kit bag -->
+  <rect x="185" y="178" width="14" height="11" fill="#f97316" rx="2"/>
+  <line x1="190" y1="184" x2="196" y2="184" stroke="#fff" stroke-width="1.5"/>
+  <line x1="193" y1="180" x2="193" y2="188" stroke="#fff" stroke-width="1.5"/>
+  <!-- House door -->
+  <rect x="240" y="150" width="35" height="80" fill="#0f766e" rx="3"/>
+  <circle cx="248" cy="192" r="3" fill="#99f6e4"/>
+  <!-- House -->
+  <rect x="230" y="90" width="60" height="65" fill="#0f766e"/>
+  <polygon points="225,95 295,95 260,58" fill="#0d9488"/>
+  <!-- Window in house -->
+  <rect x="248" y="105" width="22" height="22" fill="#99f6e4" rx="2"/>
+  <text x="150" y="288" font-family="Arial" font-size="13" fill="#0f766e" text-anchor="middle" font-weight="bold">Home Visits Available</text>
+</svg>

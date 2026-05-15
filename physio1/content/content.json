@@ -1,0 +1,118 @@
+{
+  "banner": {
+    "enabled": false,
+    "message": "Now accepting new patients across Auckland. Call 022 137 0336 to book.",
+    "type": "promo"
+  },
+  "hero": {
+    "title": "Physiotherapy That Comes to You",
+    "subtitle": "Professional, personalised physiotherapy in the comfort of your own home. Recovering from injury, surgery, or managing a chronic condition — we come to you.",
+    "tagline": "Serving Auckland & Surrounding Areas",
+    "cta_book": "Book a Session",
+    "cta_services": "Our Services"
+  },
+  "about": {
+    "heading": "About PhysioOnWheels",
+    "intro": "PhysioOnWheels brings qualified physiotherapy directly to your door — no travel, no waiting rooms, just focused one-on-one care in your own home.",
+    "paragraphs": [
+      "Our home-based physiotherapy service was founded on a simple belief: quality care should be accessible to everyone, wherever they are. Whether you're recovering from surgery, managing a long-term condition, or simply finding it difficult to travel to a clinic, we make it easy.",
+      "Each session is conducted by a registered physiotherapist who takes the time to understand your specific situation, goals, and home environment. Your treatment plan is designed around your life — not a generic protocol."
+    ],
+    "therapist_name": "Thandeka",
+    "therapist_title": "Registered Physiotherapist",
+    "therapist_bio": "Thandeka is a registered physiotherapist with experience across orthopaedic, neurological, and geriatric rehabilitation. Passionate about accessible healthcare, she founded PhysioOnWheels to remove the barriers that prevent people from getting the treatment they need."
+  },
+  "contact": {
+    "phone": "022 137 0336",
+    "email": "werphysio1@gmail.com",
+    "service_area": "Auckland & Surrounding Areas",
+    "hours": "Mon–Fri 8:00am–6:00pm · Sat 8:00am–1:00pm"
+  },
+  "services": [
+    {
+      "id": "assessment",
+      "name": "Initial Assessment",
+      "icon": "🏥",
+      "short": "A comprehensive evaluation of your condition, movement, and goals. Forms the foundation of your personalised treatment plan.",
+      "duration": "60 min"
+    },
+    {
+      "id": "rehabilitation",
+      "name": "Rehabilitation",
+      "icon": "💪",
+      "short": "Structured programmes to restore strength, mobility, and function following injury, surgery, or illness.",
+      "duration": "45–60 min"
+    },
+    {
+      "id": "falls",
+      "name": "Falls Prevention & Balance",
+      "icon": "🧘",
+      "short": "Targeted exercises and assessments to improve balance, reduce fall risk, and maintain independence.",
+      "duration": "45 min"
+    },
+    {
+      "id": "pain",
+      "name": "Pain Management",
+      "icon": "🩹",
+      "short": "Evidence-based strategies to manage chronic or acute pain, including manual therapy and exercise prescription.",
+      "duration": "45–60 min"
+    },
+    {
+      "id": "neurological",
+      "name": "Neurological Rehabilitation",
+      "icon": "🧠",
+      "short": "Specialised therapy for conditions such as stroke, Parkinson's, multiple sclerosis, and other neurological disorders.",
+      "duration": "60 min"
+    },
+    {
+      "id": "postop",
+      "name": "Post-Operative Rehabilitation",
+      "icon": "🔧",
+      "short": "Guided recovery programmes following joint replacements, spinal surgery, or other procedures.",
+      "duration": "45–60 min"
+    }
+  ],
+  "pricing": [
+    {
+      "name": "Initial Assessment",
+      "price": 120,
+      "duration": "60 min",
+      "description": "Full assessment, diagnosis discussion, and personalised treatment plan"
+    },
+    {
+      "name": "Standard Session",
+      "price": 95,
+      "duration": "45 min",
+      "description": "Follow-up treatment session"
+    },
+    {
+      "name": "Extended Session",
+      "price": 130,
+      "duration": "60 min",
+      "description": "Extended treatment — ideal for complex conditions"
+    },
+    {
+      "name": "Home Exercise Programme",
+      "price": 75,
+      "duration": "30 min",
+      "description": "Review and progression of your home exercise programme"
+    }
+  ],
+  "availability": {
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "start_hour": 8,
+    "end_hour": 18,
+    "slot_duration": 60
+  },
+  "settings": {
+    "payment_enabled": true,
+    "booking_enabled": true
+  }
+}

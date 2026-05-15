@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <rect width="300" height="300" fill="#f0fdfa" rx="16"/>
+  <!-- Exercise mat -->
+  <ellipse cx="150" cy="240" rx="110" ry="18" fill="#ccfbf1"/>
+  <!-- Person lying, leg raised (physio stretch) -->
+  <!-- Body/torso -->
+  <rect x="80" y="200" width="100" height="22" fill="#0d9488" rx="8"/>
+  <!-- Head -->
+  <circle cx="195" cy="206" r="16" fill="#5eead4"/>
+  <!-- Hair -->
+  <path d="M183,195 Q195,185 207,195" fill="#0f766e"/>
+  <!-- Raised leg -->
+  <line x1="90" y1="208" x2="70" y2="170" stroke="#0d9488" stroke-width="14" stroke-linecap="round"/>
+  <line x1="70" y1="170" x2="52" y2="145" stroke="#0d9488" stroke-width="12" stroke-linecap="round"/>
+  <!-- Foot -->
+  <ellipse cx="46" cy="140" rx="12" ry="7" fill="#0f766e" transform="rotate(-30,46,140)"/>
+  <!-- Down leg -->
+  <line x1="90" y1="218" x2="60" y2="230" stroke="#0d9488" stroke-width="14" stroke-linecap="round"/>
+  <!-- Arms -->
+  <line x1="150" y1="208" x2="160" y2="185" stroke="#0d9488" stroke-width="10" stroke-linecap="round"/>
+  <!-- Therapist hand assisting -->
+  <circle cx="60" cy="163" r="9" fill="#f97316"/>
+  <text x="150" y="278" font-family="Arial" font-size="13" fill="#0f766e" text-anchor="middle" font-weight="bold">Guided Rehabilitation</text>
+  <!-- Decorative cross -->
+  <rect x="248" y="28" width="8" height="24" fill="#0d9488" rx="2" opacity="0.4"/>
+  <rect x="240" y="36" width="24" height="8" fill="#0d9488" rx="2" opacity="0.4"/>
+</svg>

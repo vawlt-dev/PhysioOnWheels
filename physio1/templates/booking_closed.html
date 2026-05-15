@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Bookings Unavailable — PhysioOnWheels{% endblock %}
+{% block content %}
+<section style="background: var(--cream); min-height: 70vh; display:flex; align-items:center; justify-content:center; padding: 60px 28px;">
+  <div style="text-align:center; max-width:480px;">
+    <div style="font-size:3rem; margin-bottom:20px;">📅</div>
+    <h1 style="font-size:1.8rem; color:var(--teal-dark); margin-bottom:14px;">Online Booking Temporarily Unavailable</h1>
+    <p style="font-family:Arial,sans-serif; font-size:16px; color:var(--text-muted); line-height:1.8; margin-bottom:32px;">
+      Our online booking system is currently unavailable. Please call or email us directly to book a session — we'd love to hear from you.
+    </p>
+    <a href="tel:{{ c.contact.phone }}" class="btn btn-teal" style="margin-right:12px;">Call {{ c.contact.phone }}</a>
+    <a href="mailto:{{ c.contact.email }}" class="btn btn-outline-teal">Email Us</a>
+  </div>
+</section>
+{% endblock %}
