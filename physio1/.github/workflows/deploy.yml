@@ -1,0 +1,30 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - name: Pull latest
+        run: git -C C:\PhysioOnWheels\physio1 pull
+
+      - name: Install dependencies
+        run: pip install -r C:\PhysioOnWheels\physio1\requirements.txt
+
+      - name: Stop existing server
+        continue-on-error: true
+        run: for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5002 " ^| findstr "LISTENING" 2^>nul') do taskkill /PID %%a /F
+
+      - name: Start server
+        run: |
+          schtasks /end /tn "PhysioStart" 2>nul
+          schtasks /delete /tn "PhysioStart" /f 2>nul
+          timeout /t 2 /nobreak >nul
+          schtasks /create /f /tn "PhysioStart" /tr "cmd /k python C:\PhysioOnWheels\physio1\app.py" /sc once /st 00:00 /it
+          schtasks /run /tn "PhysioStart"
