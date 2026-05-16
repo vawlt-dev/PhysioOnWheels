@@ -5,3 +5,4 @@ __pycache__/
 .env
 *.log
 setup_env.ps1
+wamey/
