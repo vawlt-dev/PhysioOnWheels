@@ -8,6 +8,12 @@ from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 import db
 
+try:
+    import stripe as _stripe
+    _stripe_available = True
+except ImportError:
+    _stripe_available = False
+
 PORT = 5002
 
 app = Flask(__name__)
@@ -37,10 +43,15 @@ CONTENT_FILE = os.path.join(CONTENT_DIR, 'content.json')
 os.makedirs(IMAGES_DIR, exist_ok=True)
 db.init_db()
 
-ADMIN_USER = os.environ.get("PHYSIO_ADMIN_USER", "")
-ADMIN_PASS = os.environ.get("PHYSIO_ADMIN_PASS", "")
+ADMIN_USER         = os.environ.get("PHYSIO_ADMIN_USER", "")
+ADMIN_PASS         = os.environ.get("PHYSIO_ADMIN_PASS", "")
+STRIPE_SECRET_KEY  = os.environ.get("PHYSIO_STRIPE_SECRET_KEY", "")
+STRIPE_PUBLIC_KEY  = os.environ.get("PHYSIO_STRIPE_PUBLIC_KEY", "")
+
 if not ADMIN_USER or not ADMIN_PASS:
     raise RuntimeError("PHYSIO_ADMIN_USER and PHYSIO_ADMIN_PASS must be set. Run setup_env.ps1 first.")
+
+STRIPE_ENABLED = bool(_stripe_available and STRIPE_SECRET_KEY and STRIPE_PUBLIC_KEY)
 
 _content_lock = threading.Lock()
 
@@ -166,7 +177,9 @@ def booking():
         return render_template('booking_closed.html', c=c, active='booking')
     return render_template('booking.html', c=c, active='booking',
                            services=db.get_services(),
-                           settings=s)
+                           settings=s,
+                           stripe_public_key=STRIPE_PUBLIC_KEY,
+                           stripe_enabled=STRIPE_ENABLED)
 
 
 # ---------------------------------------------------------------------------
@@ -418,7 +431,102 @@ def custom_pay(booking_id: str):
         abort(404)
     s = db.get_all_settings()
     return render_template('custom_pay.html', c=get_content(),
-                           booking=booking, settings=s, active='')
+                           booking=booking, settings=s,
+                           stripe_public_key=STRIPE_PUBLIC_KEY,
+                           stripe_enabled=STRIPE_ENABLED,
+                           active='')
+
+
+# ---------------------------------------------------------------------------
+# Stripe payment endpoints
+# ---------------------------------------------------------------------------
+
+@app.route('/api/payment/intent', methods=['POST'])
+@csrf.exempt
+def payment_intent():
+    if not STRIPE_ENABLED:
+        return jsonify({'error': 'Stripe not configured'}), 503
+
+    data       = request.get_json(silent=True) or {}
+    booking_id = data.get('booking_id', '')
+
+    if booking_id:
+        # custom_pay.html path — booking already exists
+        booking = db.get_booking(booking_id)
+        if not booking:
+            return jsonify({'error': 'Booking not found'}), 404
+    else:
+        # booking.html path — create booking now, before payment
+        service_id = data.get('service_id', '').strip()
+        date       = data.get('date', '').strip()
+        start_time = data.get('start_time', '').strip()
+        name       = data.get('name', '').strip()
+        email      = data.get('email', '').strip()
+        if not all([service_id, date, start_time, name, email]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        svc = db.get_service(service_id)
+        if not svc:
+            return jsonify({'error': 'Unknown service'}), 400
+        ok, msg = db.is_slot_available(date, start_time, svc['duration_mins'])
+        if not ok:
+            return jsonify({'error': msg}), 409
+        booking_id = db.create_booking({
+            'service_id':    service_id,
+            'service_label': svc['name'],
+            'duration_mins': svc['duration_mins'],
+            'price':         svc['price'],
+            'date':          date,
+            'start_time':    start_time,
+            'name':          name,
+            'email':         email,
+            'phone':         data.get('phone', ''),
+            'notes':         data.get('notes', ''),
+            'payment_status': 'unpaid',
+        })
+        booking = db.get_booking(booking_id)
+        if not booking:
+            return jsonify({'error': 'Could not create booking'}), 500
+
+    if booking['payment_status'] == 'paid':
+        return jsonify({'error': 'Already paid'}), 400
+    if booking['price'] <= 0:
+        return jsonify({'error': 'No charge required'}), 400
+
+    _stripe.api_key = STRIPE_SECRET_KEY
+    intent = _stripe.PaymentIntent.create(
+        amount=int(round(booking['price'] * 100)),
+        currency='nzd',
+        metadata={'booking_id': booking_id},
+    )
+    return jsonify({'client_secret': intent['client_secret'], 'booking_id': booking_id})
+
+
+@app.route('/api/payment/complete', methods=['POST'])
+@csrf.exempt
+def payment_complete():
+    data       = request.get_json(silent=True) or {}
+    booking_id = data.get('booking_id', '')
+    booking    = db.get_booking(booking_id)
+
+    if not booking:
+        return jsonify({'error': 'Booking not found'}), 404
+
+    db.update_booking_payment(booking_id, 'paid')
+    db.update_booking_status(booking_id, 'confirmed')
+
+    s = db.get_all_settings()
+    owner_email = s.get('gmail_address', '')
+    send_email(
+        booking['email'],
+        'Payment Confirmed — PhysioOnWheels',
+        booking_email_body(booking, '<p>Your payment has been received and your appointment is confirmed.</p>'),
+    )
+    if owner_email:
+        send_email(owner_email, f'Payment Received — {booking["name"]}',
+                   booking_email_body(booking))
+
+    session['last_booking_id'] = booking_id
+    return jsonify({'redirect': f'/booking/confirm/{booking_id}'})
 
 
 # ---------------------------------------------------------------------------

@@ -37,20 +37,14 @@
   {% if settings.payment_enabled == 'true' %}
   <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:24px;">
     <h4 style="font-family:Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--teal-dark);margin-bottom:18px;">Card Details</h4>
-    <label class="form-label">Card Number</label>
-    <input class="form-input" type="text" placeholder="1234 5678 9012 3456" maxlength="19" autocomplete="cc-number">
-    <div class="card-row">
-      <div>
-        <label class="form-label">Expiry</label>
-        <input class="form-input" type="text" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp">
-      </div>
-      <div>
-        <label class="form-label">CVC</label>
-        <input class="form-input" type="text" placeholder="123" maxlength="4" autocomplete="cc-csc">
-      </div>
-    </div>
-    <div class="demo-notice">&#9888;&#65039; <strong>Demo only.</strong> No real payment is processed. Do not enter real card details.</div>
-    <button type="button" class="btn btn-coral" style="width:100%;">Pay ${{ '%.2f' | format(booking.price) }} NZD</button>
+    {% if stripe_enabled %}
+    <div id="stripe-card-element" style="padding:12px 14px;border:1px solid var(--border);border-radius:4px;background:#fff;margin-bottom:4px;"></div>
+    <div id="stripe-card-errors" style="color:#e53e3e;font-family:Arial,sans-serif;font-size:13px;margin-top:6px;min-height:18px;margin-bottom:16px;"></div>
+    {% else %}
+    <div class="demo-notice">&#9888; <strong>Demo mode.</strong> Stripe is not configured — no real payment will be processed.</div>
+    {% endif %}
+    <div id="pay-error" style="display:none;background:#fff5f5;border:1px solid #feb2b2;border-radius:4px;padding:12px 16px;font-family:Arial,sans-serif;font-size:14px;color:#c53030;margin-bottom:16px;"></div>
+    <button type="button" class="btn btn-coral" id="pay-btn" style="width:100%;" onclick="submitPayment()">Pay ${{ '%.2f' | format(booking.price) }} NZD</button>
   </div>
   {% else %}
   <div style="background:var(--teal-pale);border:1px solid var(--teal-100);border-radius:8px;padding:20px;font-family:Arial,sans-serif;font-size:14px;color:var(--teal-dark);">
@@ -61,4 +55,90 @@
   </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if settings.payment_enabled == 'true' and stripe_enabled %}
+<script src="https://js.stripe.com/v3/"></script>
+{% endif %}
+<script>
+const STRIPE_ENABLED = {{ 'true' if stripe_enabled else 'false' }};
+const STRIPE_PK      = {{ stripe_public_key | tojson }};
+const BOOKING_ID     = {{ booking.id | tojson }};
+const CSRF_TOKEN     = {{ csrf_token() | tojson }};
+
+let stripe = null, cardElement = null;
+
+if (STRIPE_ENABLED && STRIPE_PK) {
+  stripe = Stripe(STRIPE_PK);
+  const elements = stripe.elements();
+  cardElement = elements.create('card', {
+    style: {
+      base: { fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#1e293b', '::placeholder': { color: '#94a3b8' } },
+      invalid: { color: '#e53e3e' }
+    }
+  });
+  cardElement.mount('#stripe-card-element');
+  cardElement.on('change', function(e) {
+    document.getElementById('stripe-card-errors').textContent = e.error ? e.error.message : '';
+  });
+}
+
+function setPayBtn(loading, price) {
+  const btn = document.getElementById('pay-btn');
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Processing…' : ('Pay $' + price + ' NZD');
+}
+
+function showPayError(msg) {
+  const el = document.getElementById('pay-error');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+async function submitPayment() {
+  showPayError('');
+  const priceDisplay = '{{ "%.2f" | format(booking.price) }}';
+
+  if (!STRIPE_ENABLED) {
+    alert('Payment processing is in demo mode. No charge made.');
+    return;
+  }
+
+  setPayBtn(true, priceDisplay);
+
+  /* Create PaymentIntent for this booking */
+  let clientSecret;
+  try {
+    const r = await fetch('/api/payment/intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+      body: JSON.stringify({ booking_id: BOOKING_ID })
+    });
+    const data = await r.json();
+    if (!r.ok || data.error) { showPayError(data.error || 'Could not initialise payment.'); setPayBtn(false, priceDisplay); return; }
+    clientSecret = data.client_secret;
+  } catch (e) {
+    showPayError('Network error. Please try again.'); setPayBtn(false, priceDisplay); return;
+  }
+
+  /* Confirm with Stripe */
+  const { paymentIntent, error } = await stripe.confirmCardPayment(clientSecret, {
+    payment_method: { card: cardElement }
+  });
+  if (error) { showPayError(error.message); setPayBtn(false, priceDisplay); return; }
+
+  /* Mark paid on server */
+  try {
+    const r2 = await fetch('/api/payment/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+      body: JSON.stringify({ booking_id: BOOKING_ID, payment_intent_id: paymentIntent.id })
+    });
+    const d2 = await r2.json();
+    if (d2.redirect) { window.location.href = d2.redirect; return; }
+  } catch (e) { /* fall through */ }
+  window.location.href = '/booking/confirm';
+}
+</script>
 {% endblock %}

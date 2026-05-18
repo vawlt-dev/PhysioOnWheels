@@ -227,25 +227,17 @@
       <div class="booking-summary" id="summary-box-2"></div>
       <div class="payment-section">
         <h4>Card Details</h4>
-        <div class="form-row">
-          <label class="form-label">Card Number</label>
-          <input class="form-input" type="text" placeholder="1234 5678 9012 3456" maxlength="19" autocomplete="cc-number">
-        </div>
-        <div class="card-row">
-          <div class="form-row">
-            <label class="form-label">Expiry</label>
-            <input class="form-input" type="text" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp">
-          </div>
-          <div class="form-row">
-            <label class="form-label">CVC</label>
-            <input class="form-input" type="text" placeholder="123" maxlength="4" autocomplete="cc-csc">
-          </div>
-        </div>
-        <div class="demo-notice">&#9888;&#65039; <strong>Demo only.</strong> No real payment is processed. Do not enter real card details.</div>
+        {% if stripe_enabled %}
+        <div id="stripe-card-element" style="padding:12px 14px; border:1px solid var(--border); border-radius:4px; background:#fff; margin-bottom:4px;"></div>
+        <div id="stripe-card-errors" style="color:#e53e3e; font-family:Arial,sans-serif; font-size:13px; margin-top:6px; min-height:18px;"></div>
+        {% else %}
+        <div class="demo-notice">&#9888; <strong>Demo mode.</strong> Stripe is not configured — no real payment will be processed.</div>
+        {% endif %}
       </div>
+      <div id="pay-error" style="display:none; background:#fff5f5; border:1px solid #feb2b2; border-radius:4px; padding:12px 16px; font-family:Arial,sans-serif; font-size:14px; color:#c53030; margin-bottom:16px;"></div>
       <div class="step-nav">
         <button type="button" class="btn btn-outline-teal" onclick="goStep(3)">&larr; Back</button>
-        <button type="submit" class="btn btn-coral">Pay &amp; Confirm Booking</button>
+        <button type="button" class="btn btn-coral" id="pay-btn" onclick="submitPayment()">Pay &amp; Confirm Booking</button>
       </div>
     </div>
     {% endif %}
@@ -254,8 +246,13 @@
 {% endblock %}
 
 {% block scripts %}
+{% if settings.payment_enabled == 'true' and stripe_enabled %}
+<script src="https://js.stripe.com/v3/"></script>
+{% endif %}
 <script>
 const PAYMENT_ENABLED = {{ 'true' if settings.payment_enabled == 'true' else 'false' }};
+const STRIPE_ENABLED  = {{ 'true' if stripe_enabled else 'false' }};
+const STRIPE_PK       = {{ stripe_public_key | tojson }};
 let selectedService = null;
 let selectedDate    = null;
 let selectedSlot    = null;
@@ -407,6 +404,100 @@ function updateSummary() {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
   });
+}
+
+/* ── Stripe Payment ── */
+let stripe = null, cardElement = null, pendingBookingId = null;
+
+if (PAYMENT_ENABLED && STRIPE_ENABLED && STRIPE_PK) {
+  stripe = Stripe(STRIPE_PK);
+  const elements = stripe.elements();
+  cardElement = elements.create('card', {
+    style: {
+      base: {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '15px',
+        color: '#1e293b',
+        '::placeholder': { color: '#94a3b8' },
+      },
+      invalid: { color: '#e53e3e' },
+    }
+  });
+  cardElement.mount('#stripe-card-element');
+  cardElement.on('change', function(e) {
+    document.getElementById('stripe-card-errors').textContent = e.error ? e.error.message : '';
+  });
+}
+
+function setPayBtn(loading) {
+  const btn = document.getElementById('pay-btn');
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Processing…' : 'Pay & Confirm Booking';
+}
+
+function showPayError(msg) {
+  const el = document.getElementById('pay-error');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+async function submitPayment() {
+  showPayError('');
+
+  /* ── Demo mode: just POST the form ── */
+  if (!STRIPE_ENABLED) {
+    document.getElementById('booking-form').submit();
+    return;
+  }
+
+  setPayBtn(true);
+
+  /* Step 1: submit booking details to get a booking_id + client_secret */
+  const form = document.getElementById('booking-form');
+  const fd = new FormData(form);
+  let bookingId, clientSecret;
+  try {
+    const r = await fetch('/api/payment/intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': fd.get('csrf_token') },
+      body: JSON.stringify({
+        service_id:  fd.get('service_id'),
+        date:        fd.get('date'),
+        start_time:  fd.get('start_time'),
+        name:        document.getElementById('f-name').value,
+        email:       document.getElementById('f-email').value,
+        phone:       document.getElementById('f-phone').value,
+        notes:       document.getElementById('f-notes').value,
+      })
+    });
+    const data = await r.json();
+    if (!r.ok || data.error) { showPayError(data.error || 'Could not initialise payment.'); setPayBtn(false); return; }
+    bookingId    = data.booking_id;
+    clientSecret = data.client_secret;
+  } catch (e) {
+    showPayError('Network error. Please try again.'); setPayBtn(false); return;
+  }
+
+  /* Step 2: confirm card payment with Stripe */
+  const { paymentIntent, error } = await stripe.confirmCardPayment(clientSecret, {
+    payment_method: {
+      card: cardElement,
+      billing_details: { name: document.getElementById('f-name').value, email: document.getElementById('f-email').value }
+    }
+  });
+  if (error) { showPayError(error.message); setPayBtn(false); return; }
+
+  /* Step 3: mark booking paid on server, then redirect to confirm page */
+  try {
+    const r2 = await fetch('/api/payment/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': fd.get('csrf_token') },
+      body: JSON.stringify({ booking_id: bookingId, payment_intent_id: paymentIntent.id })
+    });
+    const d2 = await r2.json();
+    if (d2.redirect) { window.location.href = d2.redirect; return; }
+  } catch (e) { /* fall through to generic redirect */ }
+  window.location.href = '/booking/confirm';
 }
 </script>
 {% endblock %}
