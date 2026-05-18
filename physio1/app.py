@@ -899,8 +899,9 @@ def admin_send_payment_link(booking_id: str):
         subject = 'Appointment Confirmation — PhysioOnWheels'
         extra   = f'<p>Your appointment is confirmed and payment has been received. We look forward to seeing you.</p>{btn("View Appointment", manage_url)}'
     else:
+        price_label = f"Pay ${booking['price']:.2f} NZD"
         subject = 'Complete Your Booking — PhysioOnWheels'
-        extra   = f'<p>Please complete your booking by making payment:</p>{btn(f"Pay ${booking[\'price\']:.2f} NZD", manage_url)}'
+        extra   = f'<p>Please complete your booking by making payment:</p>{btn(price_label, manage_url)}'
 
     send_email(booking['email'], subject, booking_email_body(booking, extra))
     return redirect('/admin#bookings')
