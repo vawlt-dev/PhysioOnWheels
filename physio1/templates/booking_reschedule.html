@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Reschedule Appointment — PhysioOnWheels{% endblock %}
+
+{% block head %}
+<style>
+  .reschedule-wrap { max-width:560px; margin:64px auto; padding:0 24px 80px; }
+  .cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .cal-nav { background:none; border:1px solid var(--border); border-radius:4px; padding:6px 12px; cursor:pointer; font-size:16px; color:var(--teal); }
+  .cal-nav:hover { background:var(--teal-pale); }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-day-header { text-align:center; font-family:Arial,sans-serif; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text-muted); padding:6px 0; }
+  .cal-cell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px; font-family:Arial,sans-serif; font-size:14px; cursor:pointer; border:2px solid transparent; transition:all 0.15s; }
+  .cal-cell.empty { cursor:default; }
+  .cal-cell.disabled { color:#cbd5e1; cursor:not-allowed; }
+  .cal-cell.available:hover { background:var(--teal-pale); border-color:var(--teal-100); }
+  .cal-cell.selected { background:var(--teal); color:#fff; border-color:var(--teal); }
+  .slot-btn { font-family:Arial,sans-serif; font-size:14px; padding:8px 16px; border:2px solid var(--border); border-radius:4px; cursor:pointer; background:#fff; color:var(--text); transition:all 0.15s; margin:4px; }
+  .slot-btn:hover { border-color:var(--teal); color:var(--teal); background:var(--teal-pale); }
+  .slot-btn.selected { border-color:var(--teal); background:var(--teal); color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reschedule-wrap">
+  <span class="label">Reschedule</span>
+  <h1 style="font-size:1.8rem;color:var(--teal-xdark);margin-bottom:8px;">Choose a New Time</h1>
+
+  <div style="background:var(--teal-pale);border:1px solid var(--teal-100);border-radius:8px;padding:16px 20px;margin-bottom:28px;font-family:Arial,sans-serif;font-size:14px;">
+    <div style="margin-bottom:4px;"><span style="color:var(--text-muted);width:80px;display:inline-block;">Current</span> <strong>{{ booking.date }} at {{ booking.start_time }}</strong></div>
+    <div><span style="color:var(--text-muted);width:80px;display:inline-block;">Service</span> <strong>{{ booking.service_label }} ({{ booking.duration_mins }} min)</strong></div>
+  </div>
+
+  {% if request.args.get('error') %}
+  <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:11px 14px;font-family:Arial,sans-serif;font-size:13px;color:#b91c1c;margin-bottom:18px;">{{ request.args.get('error') }}</div>
+  {% endif %}
+
+  <div class="cal-header">
+    <button type="button" class="cal-nav" onclick="changeMonth(-1)">&#8592;</button>
+    <span style="font-family:Arial,sans-serif;font-weight:700;font-size:15px;" id="cal-month-label"></span>
+    <button type="button" class="cal-nav" onclick="changeMonth(1)">&#8594;</button>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+
+  <div style="font-family:Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:24px 0 10px;">Available Times</div>
+  <div id="slots-container"><p style="font-family:Arial,sans-serif;font-size:14px;color:#94a3b8;">Select a date above.</p></div>
+
+  <form method="POST" action="/booking/reschedule/{{ token }}" id="reschedule-form" style="margin-top:24px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="date"       id="f-date">
+    <input type="hidden" name="start_time" id="f-start-time">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <button type="submit" class="btn btn-teal" id="btn-confirm" disabled>Confirm New Time</button>
+      <a href="/booking/view/{{ booking.id }}" class="btn btn-outline-teal">Keep Current Time</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DURATION = {{ booking.duration_mins }};
+let selectedDate = null, calYear, calMonth;
+
+(function(){ const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); renderCalendar(); })();
+
+function changeMonth(d){ calMonth+=d; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+
+function renderCalendar(){
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-month-label').textContent = months[calMonth]+' '+calYear;
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = days.map(d=>'<div class="cal-day-header">'+d+'</div>').join('');
+  const first=(new Date(calYear,calMonth,1).getDay()+6)%7;
+  const last=new Date(calYear,calMonth+1,0).getDate();
+  for(let i=0;i<first;i++) html+='<div class="cal-cell empty"></div>';
+  const today=new Date(); today.setHours(0,0,0,0);
+  const max=new Date(today); max.setDate(today.getDate()+42);
+  for(let d=1;d<=last;d++){
+    const dt=new Date(calYear,calMonth,d);
+    const ds=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    if(dt<today||dt>max){ html+='<div class="cal-cell disabled">'+d+'</div>'; }
+    else { html+='<div class="cal-cell available'+(selectedDate===ds?' selected':'')+(dt.getTime()===today.getTime()?' today':'')+'" onclick="selectDate(\''+ds+'\')">'+d+'</div>'; }
+  }
+  document.getElementById('cal-grid').innerHTML=html;
+}
+
+function selectDate(ds){
+  selectedDate=ds; document.getElementById('f-date').value=ds;
+  document.getElementById('f-start-time').value='';
+  document.getElementById('btn-confirm').disabled=true;
+  renderCalendar();
+  const c=document.getElementById('slots-container');
+  c.innerHTML='<p style="font-family:Arial,sans-serif;font-size:14px;color:#94a3b8;">Loading…</p>';
+  fetch('/api/slots?date='+ds+'&duration='+DURATION)
+    .then(r=>r.json()).then(slots=>{
+      if(!slots.length){c.innerHTML='<p style="font-family:Arial,sans-serif;font-size:14px;color:#94a3b8;">No available times on this date.</p>';return;}
+      c.innerHTML='<div style="display:flex;flex-wrap:wrap;">'+slots.map(s=>'<button type="button" class="slot-btn" onclick="selectSlot(this,\''+s.value+'\')">'+s.label+'</button>').join('')+'</div>';
+    });
+}
+
+function selectSlot(btn,v){
+  document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('f-start-time').value=v;
+  document.getElementById('btn-confirm').disabled=false;
+}
+</script>
+{% endblock %}

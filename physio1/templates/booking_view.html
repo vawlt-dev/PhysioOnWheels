@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Your Appointment — PhysioOnWheels{% endblock %}
+{% block content %}
+<div style="max-width:520px;margin:64px auto;padding:0 24px 80px;">
+  <span class="label">Appointment</span>
+  <h1 style="font-size:1.8rem;color:var(--teal-xdark);margin-bottom:32px;">Your Booking</h1>
+
+  <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:24px;margin-bottom:24px;font-family:Arial,sans-serif;font-size:14px;">
+    {% macro row(label, value) %}
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text-muted);">{{ label }}</span>
+      <strong>{{ value }}</strong>
+    </div>
+    {% endmacro %}
+    {{ row('Service',  booking.service_label) }}
+    {{ row('Date',     booking.date) }}
+    {{ row('Time',     booking.start_time) }}
+    {{ row('Duration', booking.duration_mins ~ ' min') }}
+    {{ row('Price',    '$' ~ '%.2f' | format(booking.price) ~ ' NZD') }}
+    {{ row('Status',   booking.status | title) }}
+    {{ row('Payment',  booking.payment_status | title) }}
+  </div>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    {% if settings.client_reschedule_enabled == 'true' and booking.status != 'cancelled' %}
+    <a href="/booking/reschedule/{{ booking.reschedule_token }}" class="btn btn-outline-teal">Reschedule</a>
+    {% endif %}
+    {% if settings.client_cancel_enabled == 'true' and booking.status != 'cancelled' %}
+    <a href="/booking/cancel/{{ booking.cancel_token }}" class="btn" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;">Cancel Appointment</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

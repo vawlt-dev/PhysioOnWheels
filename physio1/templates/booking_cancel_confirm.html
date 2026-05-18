@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Cancel Appointment — PhysioOnWheels{% endblock %}
+{% block content %}
+<div style="max-width:480px;margin:64px auto;padding:0 24px 80px;">
+  <span class="label">Cancel Appointment</span>
+  <h1 style="font-size:1.8rem;color:var(--teal-xdark);margin-bottom:8px;">Are you sure?</h1>
+  <p style="font-family:Arial,sans-serif;font-size:15px;color:var(--text-muted);margin-bottom:32px;">
+    You are about to cancel the following appointment. This cannot be undone.
+  </p>
+
+  <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:20px;margin-bottom:28px;font-family:Arial,sans-serif;font-size:14px;">
+    <div style="margin-bottom:6px;"><span style="color:#b91c1c;width:80px;display:inline-block;">Service</span> <strong>{{ booking.service_label }}</strong></div>
+    <div style="margin-bottom:6px;"><span style="color:#b91c1c;width:80px;display:inline-block;">Date</span> <strong>{{ booking.date }}</strong></div>
+    <div><span style="color:#b91c1c;width:80px;display:inline-block;">Time</span> <strong>{{ booking.start_time }}</strong></div>
+  </div>
+
+  <form method="POST" action="/booking/cancel/{{ token }}" style="display:flex;gap:12px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn" style="background:#dc2626;color:#fff;">Yes, Cancel My Appointment</button>
+    <a href="/booking/view/{{ booking.id }}" class="btn btn-outline-teal">Keep Appointment</a>
+  </form>
+</div>
+{% endblock %}

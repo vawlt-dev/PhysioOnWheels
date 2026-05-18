@@ -142,7 +142,7 @@
         </div>
         <div class="detail-item">
           <p class="detail-label">Service</p>
-          <p class="detail-val">{{ booking.service }}</p>
+          <p class="detail-val">{{ booking.service_label }}</p>
         </div>
         <div class="detail-item">
           <p class="detail-label">Date</p>
@@ -150,11 +150,11 @@
         </div>
         <div class="detail-item">
           <p class="detail-label">Time</p>
-          <p class="detail-val">{{ booking.time }}</p>
+          <p class="detail-val">{{ booking.start_time }}</p>
         </div>
         <div class="detail-item">
           <p class="detail-label">Amount</p>
-          <p class="detail-val">${{ booking.price | int }} NZD</p>
+          <p class="detail-val">${{ '%.2f' | format(booking.price) }} NZD</p>
         </div>
         <div class="detail-item">
           <p class="detail-label">Status</p>

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Payment — PhysioOnWheels{% endblock %}
+
+{% block head %}
+<style>
+  .pay-wrap { max-width:480px; margin:64px auto; padding:0 24px 80px; }
+  .pay-card { background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:28px; font-family:Arial,sans-serif; font-size:14px; }
+  .pay-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); }
+  .pay-row:last-child { border-bottom:none; font-size:16px; font-weight:700; color:var(--teal-dark); }
+  .pay-row span { color:var(--text-muted); }
+  .form-label { display:block; font-family:Arial,sans-serif; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text); margin-bottom:6px; }
+  .form-input { width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:4px; font-family:Arial,sans-serif; font-size:15px; color:var(--text); margin-bottom:16px; transition:border-color 0.2s,box-shadow 0.2s; }
+  .form-input:focus { outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(13,148,136,0.1); }
+  .card-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .demo-notice { background:#fef3c7; border:1px solid #fbbf24; border-radius:4px; padding:10px 14px; font-family:Arial,sans-serif; font-size:13px; color:#92400e; margin:16px 0 24px; }
+  @media(max-width:480px){ .card-row { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pay-wrap">
+  <span class="label">Payment</span>
+  <h1 style="font-size:1.8rem;color:var(--teal-xdark);margin-bottom:8px;">Complete Your Booking</h1>
+  <p style="font-family:Arial,sans-serif;font-size:15px;color:var(--text-muted);margin-bottom:32px;">
+    Please review your appointment details and complete payment below.
+  </p>
+
+  <div class="pay-card">
+    <div class="pay-row"><span>Name</span> <strong>{{ booking.name }}</strong></div>
+    <div class="pay-row"><span>Service</span> <strong>{{ booking.service_label }}</strong></div>
+    <div class="pay-row"><span>Date</span> <strong>{{ booking.date }}</strong></div>
+    <div class="pay-row"><span>Time</span> <strong>{{ booking.start_time }}</strong></div>
+    <div class="pay-row"><span>Duration</span> <strong>{{ booking.duration_mins }} min</strong></div>
+    <div class="pay-row"><span>Total</span> <strong>${{ '%.2f' | format(booking.price) }} NZD</strong></div>
+  </div>
+
+  {% if settings.payment_enabled == 'true' %}
+  <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:24px;">
+    <h4 style="font-family:Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--teal-dark);margin-bottom:18px;">Card Details</h4>
+    <label class="form-label">Card Number</label>
+    <input class="form-input" type="text" placeholder="1234 5678 9012 3456" maxlength="19" autocomplete="cc-number">
+    <div class="card-row">
+      <div>
+        <label class="form-label">Expiry</label>
+        <input class="form-input" type="text" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp">
+      </div>
+      <div>
+        <label class="form-label">CVC</label>
+        <input class="form-input" type="text" placeholder="123" maxlength="4" autocomplete="cc-csc">
+      </div>
+    </div>
+    <div class="demo-notice">&#9888;&#65039; <strong>Demo only.</strong> No real payment is processed. Do not enter real card details.</div>
+    <button type="button" class="btn btn-coral" style="width:100%;">Pay ${{ '%.2f' | format(booking.price) }} NZD</button>
+  </div>
+  {% else %}
+  <div style="background:var(--teal-pale);border:1px solid var(--teal-100);border-radius:8px;padding:20px;font-family:Arial,sans-serif;font-size:14px;color:var(--teal-dark);">
+    Online payment is not currently enabled. Please contact us to arrange payment.
+    <div style="margin-top:12px;">
+      <a href="tel:{{ c.contact.phone }}" class="btn btn-teal">Call Us</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

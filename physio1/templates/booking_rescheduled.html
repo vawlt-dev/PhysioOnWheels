@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Appointment Rescheduled — PhysioOnWheels{% endblock %}
+{% block content %}
+<div style="max-width:480px;margin:64px auto;padding:0 24px 80px;text-align:center;">
+  <div style="font-size:3rem;margin-bottom:16px;">&#10003;</div>
+  <h1 style="font-size:1.8rem;color:var(--teal-xdark);margin-bottom:12px;">Appointment Rescheduled</h1>
+  <p style="font-family:Arial,sans-serif;font-size:15px;color:var(--text-muted);margin-bottom:8px;">
+    Your <strong>{{ booking.service_label }}</strong> has been moved to <strong>{{ booking.date }}</strong> at <strong>{{ booking.start_time }}</strong>.
+  </p>
+  <p style="font-family:Arial,sans-serif;font-size:14px;color:var(--text-muted);margin-bottom:36px;">A confirmation has been sent to your email.</p>
+  <a href="/booking/view/{{ booking.id }}" class="btn btn-teal">View Appointment</a>
+</div>
+{% endblock %}

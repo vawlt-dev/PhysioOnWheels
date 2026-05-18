@@ -1,10 +1,12 @@
-import hmac, os, datetime, threading, json, uuid, secrets
+import hmac, os, datetime, threading, json, uuid, secrets, smtplib
+from email.mime.text import MIMEText
 from functools import wraps
 from flask import (Flask, render_template, request, redirect,
                    send_from_directory, abort, session, jsonify)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
+import db
 
 PORT = 5002
 
@@ -27,25 +29,24 @@ app.config.update(
 csrf    = CSRFProtect(app)
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
-BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
-CONTENT_DIR   = os.path.join(BASE_DIR, 'content')
-IMAGES_DIR    = os.path.join(CONTENT_DIR, 'images')
-CONTENT_FILE  = os.path.join(CONTENT_DIR, 'content.json')
-BOOKINGS_FILE = os.path.join(CONTENT_DIR, 'bookings.json')
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+CONTENT_DIR  = os.path.join(BASE_DIR, 'content')
+IMAGES_DIR   = os.path.join(CONTENT_DIR, 'images')
+CONTENT_FILE = os.path.join(CONTENT_DIR, 'content.json')
 
 os.makedirs(IMAGES_DIR, exist_ok=True)
+db.init_db()
 
 ADMIN_USER = os.environ.get("PHYSIO_ADMIN_USER", "")
 ADMIN_PASS = os.environ.get("PHYSIO_ADMIN_PASS", "")
 if not ADMIN_USER or not ADMIN_PASS:
     raise RuntimeError("PHYSIO_ADMIN_USER and PHYSIO_ADMIN_PASS must be set. Run setup_env.ps1 first.")
 
-_content_lock  = threading.Lock()
-_bookings_lock = threading.Lock()
+_content_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
-# Data helpers
+# Content helpers
 # ---------------------------------------------------------------------------
 
 def _load_content() -> dict:
@@ -66,22 +67,48 @@ def get_content() -> dict:
         return _load_content()
 
 
-def _load_bookings() -> list:
+# ---------------------------------------------------------------------------
+# Email helper
+# ---------------------------------------------------------------------------
+
+def send_email(to: str, subject: str, body: str) -> bool:
+    s = db.get_all_settings()
+    if s.get('email_enabled') != 'true':
+        return False
+    gmail  = s.get('gmail_address', '')
+    app_pw = s.get('gmail_app_password', '')
+    if not gmail or not app_pw:
+        return False
     try:
-        with open(BOOKINGS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
+        msg = MIMEText(body, 'html')
+        msg['Subject'] = subject
+        msg['From']    = gmail
+        msg['To']      = to
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as srv:
+            srv.login(gmail, app_pw)
+            srv.sendmail(gmail, to, msg.as_string())
+        return True
+    except Exception:
+        return False
 
 
-def _save_bookings(bookings: list) -> None:
-    with open(BOOKINGS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(bookings, f, indent=2, ensure_ascii=False)
-
-
-def get_bookings() -> list:
-    with _bookings_lock:
-        return _load_bookings()
+def booking_email_body(booking: dict, extra: str = '') -> str:
+    return f"""
+    <p>Hi {booking['name']},</p>
+    <p>Here are your appointment details:</p>
+    <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px;">
+      <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Service</td>
+          <td><strong>{booking['service_label']}</strong></td></tr>
+      <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Date</td>
+          <td><strong>{booking['date']}</strong></td></tr>
+      <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Time</td>
+          <td><strong>{booking['start_time']}</strong></td></tr>
+      <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Duration</td>
+          <td><strong>{booking['duration_mins']} min</strong></td></tr>
+    </table>
+    {extra}
+    <p style="color:#64748b;font-size:12px;margin-top:24px;">PhysioOnWheels</p>
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +125,7 @@ def login_required(f):
 
 
 # ---------------------------------------------------------------------------
-# Static content — images only (bookings.json / content.json are NOT served)
+# Static — images only
 # ---------------------------------------------------------------------------
 
 @app.route('/content/images/<path:filename>')
@@ -127,61 +154,51 @@ def services():
 
 @app.route('/pricing')
 def pricing():
-    return render_template('pricing.html', c=get_content(), active='pricing')
+    return render_template('pricing.html', c=get_content(), active='pricing',
+                           db_services=db.get_services())
 
 
 @app.route('/booking', methods=['GET'])
 def booking():
     c = get_content()
-    if not c.get('settings', {}).get('booking_enabled', True):
+    s = db.get_all_settings()
+    if s.get('booking_enabled') != 'true':
         return render_template('booking_closed.html', c=c, active='booking')
-    return render_template('booking.html', c=c, active='booking')
+    return render_template('booking.html', c=c, active='booking',
+                           services=db.get_services(),
+                           settings=s)
 
 
 # ---------------------------------------------------------------------------
-# API — available time slots (GET, no CSRF needed)
+# API — available slots for a service on a date
 # ---------------------------------------------------------------------------
 
 @app.route('/api/slots')
 @csrf.exempt
 def api_slots():
-    date_str = request.args.get('date', '')
+    date_str    = request.args.get('date', '')
+    service_id  = request.args.get('service_id', '')
+
     if not date_str:
         return jsonify([])
 
-    c = get_content()
-    avail   = c.get('availability', {})
-    start_h = avail.get('start_hour', 8)
-    end_h   = avail.get('end_hour', 18)
-    slot_m  = avail.get('slot_duration', 60)
-    allowed = avail.get('days', [0, 1, 2, 3, 4, 5])
+    # Resolve duration: from service or fallback param
+    if service_id:
+        svc = db.get_service(service_id)
+        duration = svc['duration_mins'] if svc else 60
+    else:
+        try:
+            duration = int(request.args.get('duration', 60))
+        except ValueError:
+            duration = 60
 
     try:
         date_obj = datetime.date.fromisoformat(date_str)
     except ValueError:
         return jsonify([])
 
-    if date_obj.weekday() not in allowed or date_obj < datetime.date.today():
-        return jsonify([])
-
-    all_slots = []
-    current = start_h * 60
-    while current < end_h * 60:
-        h, m = divmod(current, 60)
-        all_slots.append(f"{h:02d}:{m:02d}")
-        current += slot_m
-
-    booked = {
-        b['time'] for b in get_bookings()
-        if b['date'] == date_str and b['status'] != 'cancelled'
-    }
-
-    def fmt(t: str) -> str:
-        h, m = map(int, t.split(':'))
-        h12 = h % 12 or 12
-        return f"{h12}:{m:02d}{'am' if h < 12 else 'pm'}"
-
-    return jsonify([{'value': s, 'label': fmt(s)} for s in all_slots if s not in booked])
+    slots = db.get_available_slots(date_obj, duration)
+    return jsonify(slots)
 
 
 # ---------------------------------------------------------------------------
@@ -190,61 +207,71 @@ def api_slots():
 
 @app.route('/booking', methods=['POST'])
 def booking_post():
-    c = get_content()
+    s = db.get_all_settings()
+    if s.get('booking_enabled') != 'true':
+        abort(403)
 
-    name      = request.form.get('name',      '')[:100].strip()
-    email     = request.form.get('email',     '')[:200].strip()
-    phone     = request.form.get('phone',     '')[:50].strip()
-    service   = request.form.get('service',   '')[:100].strip()
-    date_str  = request.form.get('date',      '')[:20].strip()
-    time_slot = request.form.get('time_slot', '')[:10].strip()
-    notes     = request.form.get('notes',     '')[:1000].strip()
+    name       = request.form.get('name',       '')[:100].strip()
+    email      = request.form.get('email',      '')[:200].strip()
+    phone      = request.form.get('phone',      '')[:50].strip()
+    service_id = request.form.get('service_id', '')
+    date_str   = request.form.get('date',       '')[:20].strip()
+    start_time = request.form.get('start_time', '')[:10].strip()
+    notes      = request.form.get('notes',      '')[:1000].strip()
 
-    # Required field check
-    if not all([name, email, service, date_str, time_slot]):
+    if not all([name, email, date_str, start_time, service_id]):
         return redirect('/booking?error=missing')
 
-    # Validate service exists in current pricing
-    valid_services = [p['name'] for p in c.get('pricing', [])]
-    if service not in valid_services:
+    svc = db.get_service(service_id)
+    if not svc:
         return redirect('/booking?error=invalid')
 
-    # Validate date
     try:
         date_obj = datetime.date.fromisoformat(date_str)
-        if date_obj < datetime.date.today():
-            return redirect('/booking?error=invalid')
     except ValueError:
         return redirect('/booking?error=invalid')
 
-    price = next(
-        (p['price'] for p in c.get('pricing', []) if p['name'] == service), 0
+    available, reason = db.is_slot_available(date_obj, start_time, svc['duration_mins'])
+    if not available:
+        return redirect(f'/booking?error={reason}')
+
+    payment_enabled = s.get('payment_enabled') == 'true'
+
+    booking_id = db.create_booking({
+        'name':          name,
+        'email':         email,
+        'phone':         phone,
+        'service_id':    service_id,
+        'service_label': svc['name'],
+        'duration_mins': svc['duration_mins'],
+        'price':         svc['price'],
+        'date':          date_str,
+        'start_time':    start_time,
+        'status':        'confirmed',
+        'payment_status': 'unpaid',
+        'notes':         notes,
+    })
+
+    booking = db.get_booking(booking_id)
+
+    # Send confirmation email
+    send_email(
+        email,
+        'Booking Confirmed — PhysioOnWheels',
+        booking_email_body(booking, f"""
+        <p>We look forward to seeing you. If you need to make changes, use the links below.</p>
+        <p><a href="{request.host_url}booking/cancel/{booking['cancel_token']}">Cancel appointment</a></p>
+        """),
     )
+    # Notify Thandeka
+    owner_email = s.get('gmail_address', '')
+    if owner_email:
+        send_email(
+            owner_email,
+            f'New Booking — {name}',
+            booking_email_body(booking, f'<p>Phone: {phone}</p><p>Notes: {notes}</p>'),
+        )
 
-    payment_enabled = c.get('settings', {}).get('payment_enabled', True)
-    booking_id = str(uuid.uuid4())  # full UUID — not truncated
-
-    record = {
-        'id':             booking_id,
-        'name':           name,
-        'email':          email,
-        'phone':          phone,
-        'service':        service,
-        'date':           date_str,
-        'time':           time_slot,
-        'notes':          notes,
-        'price':          price,
-        'payment_status': 'paid' if payment_enabled else 'pending',
-        'status':         'confirmed',
-        'created_at':     datetime.datetime.now().isoformat(),
-    }
-
-    with _bookings_lock:
-        bookings = _load_bookings()
-        bookings.append(record)
-        _save_bookings(bookings)
-
-    # Session-gate: only the browser that submitted can view the confirm page
     session['last_booking_id'] = booking_id
     return redirect(f'/booking/confirm/{booking_id}')
 
@@ -254,10 +281,144 @@ def booking_confirm(booking_id: str):
     if session.get('last_booking_id') != booking_id:
         abort(404)
     session.pop('last_booking_id', None)
-    booking = next((b for b in get_bookings() if b['id'] == booking_id), None)
+    booking = db.get_booking(booking_id)
     if not booking:
         abort(404)
-    return render_template('booking_confirm.html', c=get_content(), booking=booking, active='booking')
+    return render_template('booking_confirm.html', c=get_content(),
+                           booking=booking, active='booking')
+
+
+# ---------------------------------------------------------------------------
+# Session lookup
+# ---------------------------------------------------------------------------
+
+@app.route('/my-bookings', methods=['GET', 'POST'])
+def my_bookings():
+    c = get_content()
+    if request.method == 'GET':
+        return render_template('my_bookings.html', c=c, active='')
+
+    email = request.form.get('email', '').strip()[:200]
+    if not email:
+        return render_template('my_bookings.html', c=c, active='', error='Please enter your email.')
+
+    bookings = db.get_bookings_by_email(email)
+    if bookings:
+        s = db.get_all_settings()
+        lines = []
+        for b in bookings:
+            url = f"{request.host_url}booking/view/{b['id']}"
+            lines.append(
+                f"<b>{b['service_label']}</b> on {b['date']} at {b['start_time']}<br>"
+                f'<a href="{url}">{url}</a>'
+            )
+        body = (
+            '<p>Here are your upcoming appointments:</p>'
+            + '<br><br>'.join(lines)
+            + '<p style="color:#64748b;font-size:12px;margin-top:24px;">PhysioOnWheels</p>'
+        )
+        send_email(email, 'Your PhysioOnWheels Appointments', body)
+
+    # Always show the same message (don't leak whether email exists)
+    return render_template('my_bookings.html', c=c, active='',
+                           sent=True, email=email)
+
+
+@app.route('/booking/view/<booking_id>')
+def booking_view(booking_id: str):
+    booking = db.get_booking(booking_id)
+    if not booking or booking['status'] == 'cancelled':
+        abort(404)
+    s = db.get_all_settings()
+    return render_template('booking_view.html', c=get_content(),
+                           booking=booking, settings=s, active='')
+
+
+# ---------------------------------------------------------------------------
+# Cancel / reschedule (client-facing, token-gated)
+# ---------------------------------------------------------------------------
+
+@app.route('/booking/cancel/<token>', methods=['GET', 'POST'])
+def booking_cancel(token: str):
+    booking = db.get_booking_by_token(token, 'cancel')
+    if not booking or booking['status'] == 'cancelled':
+        abort(404)
+
+    s = db.get_all_settings()
+    if s.get('client_cancel_enabled') != 'true':
+        abort(403)
+
+    c = get_content()
+    if request.method == 'POST':
+        db.update_booking_status(booking['id'], 'cancelled')
+        send_email(
+            booking['email'],
+            'Appointment Cancelled — PhysioOnWheels',
+            booking_email_body(booking, '<p>Your appointment has been cancelled.</p>'),
+        )
+        return render_template('booking_cancelled.html', c=c, booking=booking, active='')
+
+    return render_template('booking_cancel_confirm.html', c=c,
+                           booking=booking, token=token, active='')
+
+
+@app.route('/booking/reschedule/<token>', methods=['GET', 'POST'])
+def booking_reschedule(token: str):
+    booking = db.get_booking_by_token(token, 'reschedule')
+    if not booking or booking['status'] == 'cancelled':
+        abort(404)
+
+    s = db.get_all_settings()
+    if s.get('client_reschedule_enabled') != 'true':
+        abort(403)
+
+    c = get_content()
+    if request.method == 'POST':
+        new_date  = request.form.get('date',       '')[:20].strip()
+        new_start = request.form.get('start_time', '')[:10].strip()
+
+        if not new_date or not new_start:
+            return redirect(f'/booking/reschedule/{token}?error=missing')
+
+        try:
+            date_obj = datetime.date.fromisoformat(new_date)
+        except ValueError:
+            return redirect(f'/booking/reschedule/{token}?error=invalid')
+
+        available, reason = db.is_slot_available(
+            date_obj, new_start, booking['duration_mins'],
+            exclude_id=booking['id'],
+        )
+        if not available:
+            return redirect(f'/booking/reschedule/{token}?error={reason}')
+
+        db.reschedule_booking(booking['id'], new_date, new_start, booking['duration_mins'])
+        updated = db.get_booking(booking['id'])
+        send_email(
+            booking['email'],
+            'Appointment Rescheduled — PhysioOnWheels',
+            booking_email_body(updated, '<p>Your appointment has been rescheduled to the time above.</p>'),
+        )
+        return render_template('booking_rescheduled.html', c=c,
+                               booking=updated, active='')
+
+    return render_template('booking_reschedule.html', c=c,
+                           booking=booking, token=token,
+                           settings=s, active='')
+
+
+# ---------------------------------------------------------------------------
+# Custom payment page (token-gated, client-facing)
+# ---------------------------------------------------------------------------
+
+@app.route('/pay/<booking_id>')
+def custom_pay(booking_id: str):
+    booking = db.get_booking(booking_id)
+    if not booking or booking['payment_status'] == 'paid':
+        abort(404)
+    s = db.get_all_settings()
+    return render_template('custom_pay.html', c=get_content(),
+                           booking=booking, settings=s, active='')
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +432,6 @@ def admin_login():
     if request.method == 'POST':
         u = request.form.get('username', '')
         p = request.form.get('password', '')
-        # Constant-time comparison prevents timing oracle attacks
         user_ok = hmac.compare_digest(u, ADMIN_USER)
         pass_ok = hmac.compare_digest(p, ADMIN_PASS)
         if user_ok and pass_ok:
@@ -296,7 +456,15 @@ def admin_logout():
 @app.route('/admin')
 @login_required
 def admin():
-    return render_template('admin.html', c=get_content(), bookings=get_bookings())
+    return render_template(
+        'admin.html',
+        c=get_content(),
+        bookings=db.get_all_bookings(),
+        services=db.get_services(active_only=False),
+        working_hours=db.get_working_hours(),
+        blocked_events=db.get_all_blocked_events(),
+        settings=db.get_all_settings(),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +495,6 @@ def admin_banner():
 def admin_content():
     with _content_lock:
         data = _load_content()
-
         h = data.setdefault('hero', {})
         h['title']        = request.form.get('hero_title',        '')[:200].strip()
         h['subtitle']     = request.form.get('hero_subtitle',     '')[:500].strip()
@@ -336,11 +503,11 @@ def admin_content():
         h['cta_services'] = request.form.get('hero_cta_services', 'Our Services')[:50].strip()
 
         a = data.setdefault('about', {})
-        a['heading']        = request.form.get('about_heading',   '')[:200].strip()
-        a['intro']          = request.form.get('about_intro',     '')[:500].strip()
+        a['heading']         = request.form.get('about_heading',   '')[:200].strip()
+        a['intro']           = request.form.get('about_intro',     '')[:500].strip()
         p1 = request.form.get('about_p1', '')[:1000].strip()
         p2 = request.form.get('about_p2', '')[:1000].strip()
-        a['paragraphs']     = [p for p in [p1, p2] if p]
+        a['paragraphs']      = [p for p in [p1, p2] if p]
         a['therapist_name']  = request.form.get('therapist_name',  '')[:100].strip()
         a['therapist_title'] = request.form.get('therapist_title', '')[:100].strip()
         a['therapist_bio']   = request.form.get('therapist_bio',   '')[:1000].strip()
@@ -350,13 +517,12 @@ def admin_content():
         ct['email']        = request.form.get('contact_email', '')[:200].strip()
         ct['service_area'] = request.form.get('contact_area',  '')[:200].strip()
         ct['hours']        = request.form.get('contact_hours', '')[:200].strip()
-
         _save_content(data)
     return redirect('/admin#content')
 
 
 # ---------------------------------------------------------------------------
-# Admin — services
+# Admin — services (display text, separate from bookable services in DB)
 # ---------------------------------------------------------------------------
 
 @app.route('/admin/services', methods=['POST'])
@@ -372,9 +538,9 @@ def admin_services():
             services.append({
                 'id':       f'svc_{i}',
                 'name':     name,
-                'icon':     request.form.get(f'svc_{i}_icon',     '🏥').strip() or '🏥',
+                'icon':     request.form.get(f'svc_{i}_icon',     '').strip() or '',
                 'short':    request.form.get(f'svc_{i}_short',    '')[:500].strip(),
-                'duration': request.form.get(f'svc_{i}_duration', '45 min').strip(),
+                'duration': request.form.get(f'svc_{i}_duration', '').strip(),
             })
         data['services'] = services
         _save_content(data)
@@ -382,32 +548,94 @@ def admin_services():
 
 
 # ---------------------------------------------------------------------------
-# Admin — pricing
+# Admin — bookable services (DB)
 # ---------------------------------------------------------------------------
 
-@app.route('/admin/pricing', methods=['POST'])
+@app.route('/admin/bookable-services', methods=['POST'])
 @login_required
-def admin_pricing():
-    with _content_lock:
-        data = _load_content()
-        pricing = []
-        for i in range(10):
-            name = request.form.get(f'price_{i}_name', '').strip()
-            if not name:
-                continue
-            try:
-                price = float(request.form.get(f'price_{i}_price', '0'))
-            except ValueError:
-                price = 0.0
-            pricing.append({
-                'name':        name,
-                'price':       price,
-                'duration':    request.form.get(f'price_{i}_duration',    '').strip(),
-                'description': request.form.get(f'price_{i}_description', '')[:500].strip(),
-            })
-        data['pricing'] = pricing
-        _save_content(data)
-    return redirect('/admin#pricing')
+def admin_bookable_services():
+    action = request.form.get('action', '')
+
+    if action == 'delete':
+        sid = request.form.get('service_id', '')
+        if sid:
+            db.delete_service(sid)
+        return redirect('/admin#bookable-services')
+
+    # upsert
+    for i in range(20):
+        name = request.form.get(f'bs_{i}_name', '').strip()
+        if not name:
+            continue
+        db.upsert_service({
+            'id':            request.form.get(f'bs_{i}_id', '').strip() or None,
+            'name':          name,
+            'description':   request.form.get(f'bs_{i}_desc',     '')[:500].strip(),
+            'duration_mins': int(request.form.get(f'bs_{i}_dur',  60) or 60),
+            'price':         float(request.form.get(f'bs_{i}_price', 0) or 0),
+            'active':        request.form.get(f'bs_{i}_active') == 'on',
+            'display_order': i,
+        })
+    return redirect('/admin#bookable-services')
+
+
+# ---------------------------------------------------------------------------
+# Admin — working hours
+# ---------------------------------------------------------------------------
+
+@app.route('/admin/working-hours', methods=['POST'])
+@login_required
+def admin_working_hours():
+    hours = []
+    for day in range(7):
+        hours.append({
+            'day_of_week': day,
+            'start_time':  request.form.get(f'wh_{day}_start', '08:00'),
+            'end_time':    request.form.get(f'wh_{day}_end',   '18:00'),
+            'enabled':     request.form.get(f'wh_{day}_enabled') == 'on',
+        })
+    db.save_working_hours(hours)
+    return redirect('/admin#working-hours')
+
+
+# ---------------------------------------------------------------------------
+# Admin — blocked events
+# ---------------------------------------------------------------------------
+
+@app.route('/admin/blocked-events', methods=['POST'])
+@login_required
+def admin_blocked_events():
+    action = request.form.get('action', 'add')
+
+    if action == 'delete':
+        eid = request.form.get('event_id', '')
+        if eid:
+            db.delete_blocked_event(eid)
+        return redirect('/admin#blocked-events')
+
+    if action == 'update':
+        eid = request.form.get('event_id', '')
+        if eid:
+            db.update_blocked_event(eid, _blocked_event_from_form())
+        return redirect('/admin#blocked-events')
+
+    db.add_blocked_event(_blocked_event_from_form())
+    return redirect('/admin#blocked-events')
+
+
+def _blocked_event_from_form() -> dict:
+    recurrence = request.form.get('recurrence', 'none')
+    days_raw   = request.form.getlist('recurrence_days')
+    return {
+        'title':           request.form.get('title',          '')[:200].strip(),
+        'date':            request.form.get('date',           '') or None,
+        'start_time':      request.form.get('start_time',     ''),
+        'end_time':        request.form.get('end_time',       ''),
+        'recurrence':      recurrence,
+        'recurrence_days': ','.join(days_raw),
+        'recurrence_end':  request.form.get('recurrence_end', '') or None,
+        'color':           request.form.get('color',          '#f97316'),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -417,12 +645,17 @@ def admin_pricing():
 @app.route('/admin/settings', methods=['POST'])
 @login_required
 def admin_settings():
-    with _content_lock:
-        data = _load_content()
-        s = data.setdefault('settings', {})
-        s['payment_enabled'] = request.form.get('payment_enabled') == 'on'
-        s['booking_enabled'] = request.form.get('booking_enabled') == 'on'
-        _save_content(data)
+    db.save_settings({
+        'booking_enabled':           'true' if request.form.get('booking_enabled')          == 'on' else 'false',
+        'payment_enabled':           'true' if request.form.get('payment_enabled')           == 'on' else 'false',
+        'client_cancel_enabled':     'true' if request.form.get('client_cancel_enabled')     == 'on' else 'false',
+        'client_reschedule_enabled': 'true' if request.form.get('client_reschedule_enabled') == 'on' else 'false',
+        'email_enabled':             'true' if request.form.get('email_enabled')             == 'on' else 'false',
+        'buffer_mins':               str(int(request.form.get('buffer_mins', 30) or 30)),
+        'booking_horizon_weeks':     str(int(request.form.get('booking_horizon_weeks', 6) or 6)),
+        'gmail_address':             request.form.get('gmail_address',     '')[:200].strip(),
+        'gmail_app_password':        request.form.get('gmail_app_password','')[:200].strip(),
+    })
     return redirect('/admin#settings')
 
 
@@ -434,16 +667,176 @@ def admin_settings():
 @login_required
 def admin_booking_status(booking_id: str):
     status = request.form.get('status', 'confirmed')
-    if status not in ('confirmed', 'completed', 'cancelled'):
+    if status not in ('confirmed', 'completed', 'cancelled', 'pending'):
         status = 'confirmed'
-    with _bookings_lock:
-        bookings = _load_bookings()
-        for b in bookings:
-            if b['id'] == booking_id:
-                b['status'] = status
-                break
-        _save_bookings(bookings)
+    db.update_booking_status(booking_id, status)
     return redirect('/admin#bookings')
+
+
+# ---------------------------------------------------------------------------
+# Admin — create booking manually
+# ---------------------------------------------------------------------------
+
+@app.route('/admin/bookings/create', methods=['POST'])
+@login_required
+def admin_create_booking():
+    name       = request.form.get('name',       '')[:100].strip()
+    email      = request.form.get('email',      '')[:200].strip()
+    phone      = request.form.get('phone',      '')[:50].strip()
+    date_str   = request.form.get('date',       '')[:20].strip()
+    start_time = request.form.get('start_time', '')[:10].strip()
+    notes      = request.form.get('notes',      '')[:1000].strip()
+    is_custom  = request.form.get('is_custom') == 'on'
+
+    if not all([name, email, date_str, start_time]):
+        return redirect('/admin#bookings?error=missing')
+
+    try:
+        date_obj = datetime.date.fromisoformat(date_str)
+    except ValueError:
+        return redirect('/admin#bookings?error=invalid')
+
+    if is_custom:
+        label    = request.form.get('custom_label', '')[:200].strip() or 'Custom Appointment'
+        duration = int(request.form.get('custom_duration', 60) or 60)
+        price    = float(request.form.get('custom_price', 0) or 0)
+        sid      = None
+    else:
+        sid = request.form.get('service_id', '')
+        svc = db.get_service(sid) if sid else None
+        if not svc:
+            return redirect('/admin#bookings?error=invalid')
+        label    = svc['name']
+        duration = svc['duration_mins']
+        price    = svc['price']
+
+    # Admin can override conflict checking — skip it for manual bookings
+    booking_id = db.create_booking({
+        'name':          name,
+        'email':         email,
+        'phone':         phone,
+        'service_id':    sid,
+        'service_label': label,
+        'duration_mins': duration,
+        'price':         price,
+        'date':          date_str,
+        'start_time':    start_time,
+        'status':        'confirmed',
+        'payment_status': 'unpaid',
+        'notes':         notes,
+    })
+
+    # If custom booking, send payment link email
+    if is_custom:
+        booking = db.get_booking(booking_id)
+        send_email(
+            email,
+            f'Payment Required — PhysioOnWheels',
+            booking_email_body(booking, f"""
+            <p>Please complete your booking by making payment:</p>
+            <p><a href="{request.host_url}pay/{booking_id}" style="background:#0d9488;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;">Pay ${price:.2f} NZD</a></p>
+            """),
+        )
+
+    return redirect('/admin#bookings')
+
+
+# ---------------------------------------------------------------------------
+# Admin — send payment link for existing booking
+# ---------------------------------------------------------------------------
+
+@app.route('/admin/bookings/<booking_id>/send-payment-link', methods=['POST'])
+@login_required
+def admin_send_payment_link(booking_id: str):
+    booking = db.get_booking(booking_id)
+    if not booking:
+        abort(404)
+    send_email(
+        booking['email'],
+        'Payment Required — PhysioOnWheels',
+        booking_email_body(booking, f"""
+        <p>Please complete your booking by making payment:</p>
+        <p><a href="{request.host_url}pay/{booking_id}" style="background:#0d9488;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;">Pay ${booking['price']:.2f} NZD</a></p>
+        """),
+    )
+    return redirect('/admin#bookings')
+
+
+# ---------------------------------------------------------------------------
+# Admin — calendar API (FullCalendar feed)
+# ---------------------------------------------------------------------------
+
+@app.route('/api/admin/calendar')
+@login_required
+@csrf.exempt
+def admin_calendar_feed():
+    start_str = request.args.get('start', '')
+    end_str   = request.args.get('end',   '')
+    events    = []
+
+    # Bookings
+    for b in db.get_all_bookings():
+        if b['status'] == 'cancelled':
+            continue
+        color_map = {'confirmed': '#0d9488', 'pending': '#f97316', 'completed': '#64748b'}
+        events.append({
+            'id':    f"booking-{b['id']}",
+            'title': f"{b['name']} — {b['service_label']}",
+            'start': f"{b['date']}T{b['start_time']}",
+            'end':   f"{b['date']}T{b['end_time']}",
+            'color': color_map.get(b['status'], '#0d9488'),
+            'extendedProps': {'type': 'booking', 'booking_id': b['id']},
+        })
+
+    # Blocked events
+    try:
+        start_d = datetime.date.fromisoformat(start_str[:10]) if start_str else None
+        end_d   = datetime.date.fromisoformat(end_str[:10])   if end_str   else None
+    except ValueError:
+        start_d = end_d = None
+
+    for e in db.get_all_blocked_events():
+        if e['recurrence'] == 'none':
+            if e['date']:
+                events.append({
+                    'id':    f"block-{e['id']}",
+                    'title': e['title'],
+                    'start': f"{e['date']}T{e['start_time']}",
+                    'end':   f"{e['date']}T{e['end_time']}",
+                    'color': e['color'],
+                    'extendedProps': {'type': 'block', 'event_id': e['id']},
+                })
+        else:
+            # Expand recurring events into the requested window
+            if start_d and end_d:
+                cur = start_d
+                while cur <= end_d:
+                    should_include = False
+                    if e['recurrence'] == 'daily':
+                        should_include = True
+                    elif e['recurrence'] == 'weekly':
+                        days = [int(d) for d in e['recurrence_days'].split(',') if d.strip()]
+                        should_include = cur.weekday() in days
+
+                    if e['recurrence_end']:
+                        try:
+                            if cur > datetime.date.fromisoformat(e['recurrence_end']):
+                                should_include = False
+                        except ValueError:
+                            pass
+
+                    if should_include:
+                        events.append({
+                            'id':    f"block-{e['id']}-{cur.isoformat()}",
+                            'title': e['title'],
+                            'start': f"{cur.isoformat()}T{e['start_time']}",
+                            'end':   f"{cur.isoformat()}T{e['end_time']}",
+                            'color': e['color'],
+                            'extendedProps': {'type': 'block', 'event_id': e['id']},
+                        })
+                    cur += datetime.timedelta(days=1)
+
+    return jsonify(events)
 
 
 # ---------------------------------------------------------------------------

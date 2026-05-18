@@ -98,12 +98,12 @@
 <section style="padding: 72px 28px; background: var(--cream);">
   <div class="container">
     <div class="pricing-grid">
-      {% for p in c.pricing %}
+      {% for p in db_services %}
       <div class="price-card {% if loop.index0 == 0 %}featured{% endif %}">
         {% if loop.index0 == 0 %}<span class="featured-badge">Start Here</span>{% endif %}
         <h3 class="price-name">{{ p.name }}</h3>
         <div class="price-amount"><span>$</span>{{ p.price | int }}</div>
-        <p class="price-dur">{{ p.duration }}</p>
+        <p class="price-dur">{{ p.duration_mins }} min</p>
         <p class="price-desc">{{ p.description }}</p>
       </div>
       {% endfor %}
