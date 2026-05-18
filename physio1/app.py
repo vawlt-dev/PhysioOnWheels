@@ -272,8 +272,8 @@ def booking_post():
         email,
         'Booking Confirmed — PhysioOnWheels',
         booking_email_body(booking, f"""
-        <p>We look forward to seeing you. If you need to make changes, use the links below.</p>
-        <p><a href="{request.host_url}booking/cancel/{booking['cancel_token']}">Cancel appointment</a></p>
+        <p>We look forward to seeing you.</p>
+        <p><a href="{request.host_url}booking/manage/{booking['cancel_token']}">View, reschedule or cancel your appointment</a></p>
         """),
     )
     # Notify Thandeka
@@ -340,101 +340,101 @@ def my_bookings():
 @app.route('/booking/view/<booking_id>')
 def booking_view(booking_id: str):
     booking = db.get_booking(booking_id)
-    if not booking or booking['status'] == 'cancelled':
+    if not booking:
         abort(404)
-    s = db.get_all_settings()
-    return render_template('booking_view.html', c=get_content(),
-                           booking=booking, settings=s, active='')
+    return redirect(f'/booking/manage/{booking["cancel_token"]}')
 
 
 # ---------------------------------------------------------------------------
-# Cancel / reschedule (client-facing, token-gated)
+# Manage appointment (unified pay / reschedule / cancel page)
 # ---------------------------------------------------------------------------
 
-@app.route('/booking/cancel/<token>', methods=['GET', 'POST'])
-def booking_cancel(token: str):
+@app.route('/booking/manage/<token>', methods=['GET', 'POST'])
+def booking_manage(token: str):
     booking = db.get_booking_by_token(token, 'cancel')
-    if not booking or booking['status'] == 'cancelled':
+    if not booking:
+        booking = db.get_booking_by_token(token, 'reschedule')
+    if not booking:
         abort(404)
 
     s = db.get_all_settings()
-    if s.get('client_cancel_enabled') != 'true':
-        abort(403)
-
     c = get_content()
+    flash_success = flash_error = None
+
     if request.method == 'POST':
-        db.update_booking_status(booking['id'], 'cancelled')
-        send_email(
-            booking['email'],
-            'Appointment Cancelled — PhysioOnWheels',
-            booking_email_body(booking, '<p>Your appointment has been cancelled.</p>'),
-        )
-        return render_template('booking_cancelled.html', c=c, booking=booking, active='')
+        action = request.form.get('action', '')
 
-    return render_template('booking_cancel_confirm.html', c=c,
-                           booking=booking, token=token, active='')
+        if action == 'cancel':
+            if s.get('client_cancel_enabled') != 'true':
+                flash_error = 'Cancellations are not currently available online. Please contact us.'
+            elif booking['status'] == 'cancelled':
+                flash_error = 'This appointment is already cancelled.'
+            else:
+                db.update_booking_status(booking['id'], 'cancelled')
+                booking = db.get_booking(booking['id'])
+                send_email(
+                    booking['email'],
+                    'Appointment Cancelled — PhysioOnWheels',
+                    booking_email_body(booking, '<p>Your appointment has been cancelled as requested.</p>'),
+                )
+                flash_success = 'Your appointment has been cancelled.'
+
+        elif action == 'reschedule':
+            if s.get('client_reschedule_enabled') != 'true':
+                flash_error = 'Online rescheduling is not currently available. Please contact us.'
+            else:
+                new_date  = request.form.get('date',       '')[:20].strip()
+                new_start = request.form.get('start_time', '')[:10].strip()
+                if not new_date or not new_start:
+                    return redirect(f'/booking/manage/{token}?reschedule_error=Please+select+a+date+and+time.')
+                try:
+                    date_obj = datetime.date.fromisoformat(new_date)
+                except ValueError:
+                    return redirect(f'/booking/manage/{token}?reschedule_error=Invalid+date.')
+                available, reason = db.is_slot_available(
+                    date_obj, new_start, booking['duration_mins'],
+                    exclude_id=booking['id'],
+                )
+                if not available:
+                    return redirect(f'/booking/manage/{token}?reschedule_error={reason}')
+                db.reschedule_booking(booking['id'], new_date, new_start, booking['duration_mins'])
+                booking = db.get_booking(booking['id'])
+                send_email(
+                    booking['email'],
+                    'Appointment Rescheduled — PhysioOnWheels',
+                    booking_email_body(booking, '<p>Your appointment has been moved to the new time above.</p>'),
+                )
+                flash_success = 'Your appointment has been rescheduled.'
+
+        booking = db.get_booking(booking['id'])
+
+    return render_template('booking_manage.html', c=c,
+                           booking=booking, settings=s,
+                           stripe_public_key=STRIPE_PUBLIC_KEY,
+                           stripe_enabled=STRIPE_ENABLED,
+                           flash_success=flash_success,
+                           flash_error=flash_error,
+                           active='')
 
 
-@app.route('/booking/reschedule/<token>', methods=['GET', 'POST'])
-def booking_reschedule(token: str):
+# Legacy URL redirects — keep old email links working
+@app.route('/booking/cancel/<token>', methods=['GET'])
+def booking_cancel_redirect(token: str):
+    return redirect(f'/booking/manage/{token}')
+
+@app.route('/booking/reschedule/<token>', methods=['GET'])
+def booking_reschedule_redirect(token: str):
     booking = db.get_booking_by_token(token, 'reschedule')
-    if not booking or booking['status'] == 'cancelled':
+    if not booking:
         abort(404)
-
-    s = db.get_all_settings()
-    if s.get('client_reschedule_enabled') != 'true':
-        abort(403)
-
-    c = get_content()
-    if request.method == 'POST':
-        new_date  = request.form.get('date',       '')[:20].strip()
-        new_start = request.form.get('start_time', '')[:10].strip()
-
-        if not new_date or not new_start:
-            return redirect(f'/booking/reschedule/{token}?error=missing')
-
-        try:
-            date_obj = datetime.date.fromisoformat(new_date)
-        except ValueError:
-            return redirect(f'/booking/reschedule/{token}?error=invalid')
-
-        available, reason = db.is_slot_available(
-            date_obj, new_start, booking['duration_mins'],
-            exclude_id=booking['id'],
-        )
-        if not available:
-            return redirect(f'/booking/reschedule/{token}?error={reason}')
-
-        db.reschedule_booking(booking['id'], new_date, new_start, booking['duration_mins'])
-        updated = db.get_booking(booking['id'])
-        send_email(
-            booking['email'],
-            'Appointment Rescheduled — PhysioOnWheels',
-            booking_email_body(updated, '<p>Your appointment has been rescheduled to the time above.</p>'),
-        )
-        return render_template('booking_rescheduled.html', c=c,
-                               booking=updated, active='')
-
-    return render_template('booking_reschedule.html', c=c,
-                           booking=booking, token=token,
-                           settings=s, active='')
-
-
-# ---------------------------------------------------------------------------
-# Custom payment page (token-gated, client-facing)
-# ---------------------------------------------------------------------------
+    return redirect(f'/booking/manage/{booking["cancel_token"]}')
 
 @app.route('/pay/<booking_id>')
 def custom_pay(booking_id: str):
     booking = db.get_booking(booking_id)
-    if not booking or booking['payment_status'] == 'paid':
+    if not booking:
         abort(404)
-    s = db.get_all_settings()
-    return render_template('custom_pay.html', c=get_content(),
-                           booking=booking, settings=s,
-                           stripe_public_key=STRIPE_PUBLIC_KEY,
-                           stripe_enabled=STRIPE_ENABLED,
-                           active='')
+    return redirect(f'/booking/manage/{booking["cancel_token"]}')
 
 
 # ---------------------------------------------------------------------------
@@ -525,8 +525,40 @@ def payment_complete():
         send_email(owner_email, f'Payment Received — {booking["name"]}',
                    booking_email_body(booking))
 
-    session['last_booking_id'] = booking_id
-    return jsonify({'redirect': f'/booking/confirm/{booking_id}'})
+    return jsonify({'ok': True})
+
+
+@app.route('/api/payment/demo', methods=['POST'])
+@csrf.exempt
+def payment_demo():
+    if STRIPE_ENABLED:
+        return jsonify({'error': 'Demo payment not available when Stripe is configured'}), 400
+
+    data       = request.get_json(silent=True) or {}
+    booking_id = data.get('booking_id', '')
+    booking    = db.get_booking(booking_id)
+
+    if not booking:
+        return jsonify({'error': 'Booking not found'}), 404
+    if booking['payment_status'] == 'paid':
+        return jsonify({'error': 'Already paid'}), 400
+
+    db.update_booking_payment(booking_id, 'paid')
+    db.update_booking_status(booking_id, 'confirmed')
+
+    s = db.get_all_settings()
+    owner_email = s.get('gmail_address', '')
+    booking = db.get_booking(booking_id)
+    send_email(
+        booking['email'],
+        'Payment Confirmed — PhysioOnWheels',
+        booking_email_body(booking, '<p>Your payment has been received and your appointment is confirmed.</p>'),
+    )
+    if owner_email:
+        send_email(owner_email, f'Payment Received — {booking["name"]}',
+                   booking_email_body(booking))
+
+    return jsonify({'ok': True})
 
 
 # ---------------------------------------------------------------------------

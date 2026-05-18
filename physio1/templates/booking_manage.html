@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block title %}Manage Appointment — PhysioOnWheels{% endblock %}
+
+{% block head %}
+{% if settings.payment_enabled == 'true' and stripe_enabled %}
+<script src="https://js.stripe.com/v3/"></script>
+{% endif %}
+<style>
+  .manage-wrap { max-width:520px; margin:56px auto; padding:0 24px 80px; }
+  .detail-card {
+    background:#f8fafc; border:1px solid var(--border); border-radius:8px;
+    padding:24px; margin-bottom:24px; font-family:Arial,sans-serif; font-size:14px;
+  }
+  .detail-row {
+    display:flex; justify-content:space-between; padding:9px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .detail-row:last-child { border-bottom:none; }
+  .detail-row span { color:var(--text-muted); }
+  .section-card {
+    border:1px solid var(--border); border-radius:8px; margin-bottom:16px; overflow:hidden;
+  }
+  .section-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; cursor:pointer; user-select:none;
+    font-family:Arial,sans-serif; font-size:14px; font-weight:700;
+    background:#fff; border:none; width:100%; text-align:left;
+  }
+  .section-head:hover { background:var(--teal-pale); }
+  .section-head .chevron { transition:transform 0.2s; font-size:12px; color:var(--text-muted); }
+  .section-head.open .chevron { transform:rotate(180deg); }
+  .section-body { padding:20px; border-top:1px solid var(--border); background:#fff; display:none; }
+  .section-body.open { display:block; }
+
+  /* Pay */
+  #stripe-card-element { padding:12px 14px; border:1px solid var(--border); border-radius:4px; background:#fff; margin-bottom:4px; }
+  #stripe-card-errors, #demo-pay-error { font-family:Arial,sans-serif; font-size:13px; color:#e53e3e; min-height:18px; margin-top:6px; }
+  .demo-notice { background:#fef3c7; border:1px solid #fbbf24; border-radius:4px; padding:10px 14px; font-family:Arial,sans-serif; font-size:13px; color:#92400e; margin-bottom:16px; }
+
+  /* Reschedule cal */
+  .cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .cal-nav { background:none; border:1px solid var(--border); border-radius:4px; padding:5px 11px; cursor:pointer; font-size:16px; color:var(--teal); }
+  .cal-nav:hover { background:var(--teal-pale); }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:18px; }
+  .cal-day-header { text-align:center; font-family:Arial,sans-serif; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text-muted); padding:6px 0; }
+  .cal-cell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px; font-family:Arial,sans-serif; font-size:13px; cursor:pointer; border:2px solid transparent; transition:all 0.15s; }
+  .cal-cell.empty, .cal-cell.disabled { cursor:default; color:#cbd5e1; }
+  .cal-cell.available:hover { background:var(--teal-pale); border-color:var(--teal-100); }
+  .cal-cell.selected { background:var(--teal); color:#fff; border-color:var(--teal); }
+  .slot-btn { font-family:Arial,sans-serif; font-size:14px; padding:7px 14px; border:2px solid var(--border); border-radius:4px; cursor:pointer; background:#fff; color:var(--text); transition:all 0.15s; margin:3px; }
+  .slot-btn:hover { border-color:var(--teal); color:var(--teal); }
+  .slot-btn.selected { border-color:var(--teal); background:var(--teal); color:#fff; }
+
+  /* Cancel */
+  .cancel-confirm { display:none; background:#fef2f2; border:1px solid #fca5a5; border-radius:6px; padding:16px; margin-top:14px; font-family:Arial,sans-serif; font-size:14px; }
+  .cancel-confirm.show { display:block; }
+
+  /* Status banners */
+  .status-banner { border-radius:8px; padding:14px 18px; font-family:Arial,sans-serif; font-size:14px; margin-bottom:20px; }
+  .banner-paid    { background:#f0fdf4; border:1px solid #86efac; color:#166534; }
+  .banner-cancelled { background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; }
+  .banner-success { background:#f0fdf4; border:1px solid #86efac; color:#166534; }
+  .banner-error   { background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; }
+
+  @media(max-width:480px){ .manage-wrap { margin-top:32px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="manage-wrap">
+  <span class="label">Your Appointment</span>
+  <h1 style="font-size:1.8rem;color:var(--teal-xdark);margin-bottom:24px;">Manage Booking</h1>
+
+  {% if flash_success %}
+  <div class="status-banner banner-success">{{ flash_success }}</div>
+  {% endif %}
+  {% if flash_error %}
+  <div class="status-banner banner-error">{{ flash_error }}</div>
+  {% endif %}
+
+  {% if booking.status == 'cancelled' %}
+  <div class="status-banner banner-cancelled">This appointment has been cancelled.</div>
+  {% endif %}
+  {% if booking.payment_status == 'paid' %}
+  <div class="status-banner banner-paid">Payment received — your appointment is confirmed.</div>
+  {% endif %}
+
+  <!-- Booking details -->
+  <div class="detail-card">
+    <div class="detail-row"><span>Name</span><strong>{{ booking.name }}</strong></div>
+    <div class="detail-row"><span>Service</span><strong>{{ booking.service_label }}</strong></div>
+    <div class="detail-row"><span>Date</span><strong>{{ booking.date }}</strong></div>
+    <div class="detail-row"><span>Time</span><strong>{{ booking.start_time }}</strong></div>
+    <div class="detail-row"><span>Duration</span><strong>{{ booking.duration_mins }} min</strong></div>
+    <div class="detail-row"><span>Price</span><strong>${{ '%.2f' | format(booking.price) }} NZD</strong></div>
+    <div class="detail-row"><span>Status</span>
+      <strong style="color:{% if booking.status == 'confirmed' %}var(--teal-dark){% elif booking.status == 'cancelled' %}#b91c1c{% else %}var(--text){% endif %};">
+        {{ booking.status | title }}
+      </strong>
+    </div>
+    <div class="detail-row"><span>Payment</span>
+      <strong style="color:{% if booking.payment_status == 'paid' %}var(--teal-dark){% else %}var(--text-muted){% endif %};">
+        {{ booking.payment_status | title }}
+      </strong>
+    </div>
+  </div>
+
+  {# ── PAYMENT ── #}
+  {% if settings.payment_enabled == 'true' and booking.payment_status != 'paid' and booking.status != 'cancelled' %}
+  <div class="section-card">
+    <button class="section-head" onclick="toggleSection('pay-body', this)">
+      <span>Complete Payment — ${{ '%.2f' | format(booking.price) }} NZD</span>
+      <span class="chevron">&#9660;</span>
+    </button>
+    <div class="section-body" id="pay-body">
+      {% if stripe_enabled %}
+      <div id="stripe-card-element"></div>
+      <div id="stripe-card-errors"></div>
+      {% else %}
+      <div class="demo-notice">&#9888; <strong>Demo mode</strong> — clicking Pay will mark this appointment as paid without processing a real charge.</div>
+      {% endif %}
+      <div id="demo-pay-error"></div>
+      <div style="margin-top:16px;">
+        <button type="button" class="btn btn-coral" id="pay-btn" onclick="submitPayment()">
+          Pay ${{ '%.2f' | format(booking.price) }} NZD
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── RESCHEDULE ── #}
+  {% if settings.client_reschedule_enabled == 'true' and booking.status != 'cancelled' %}
+  <div class="section-card">
+    <button class="section-head" onclick="toggleSection('reschedule-body', this)">
+      <span>Change Appointment Time</span>
+      <span class="chevron">&#9660;</span>
+    </button>
+    <div class="section-body" id="reschedule-body">
+      <p style="font-family:Arial,sans-serif;font-size:14px;color:var(--text-muted);margin-bottom:16px;">
+        Current: <strong>{{ booking.date }} at {{ booking.start_time }}</strong>
+      </p>
+      {% if request.args.get('reschedule_error') %}
+      <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#b91c1c;margin-bottom:14px;">
+        {{ request.args.get('reschedule_error') }}
+      </div>
+      {% endif %}
+      <div class="cal-header">
+        <button type="button" class="cal-nav" onclick="changeMonth(-1)">&#8592;</button>
+        <span id="cal-month-label" style="font-family:Arial,sans-serif;font-weight:700;font-size:15px;"></span>
+        <button type="button" class="cal-nav" onclick="changeMonth(1)">&#8594;</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div id="slots-container" style="margin-bottom:16px;"><p style="font-family:Arial,sans-serif;font-size:14px;color:#94a3b8;">Select a date above.</p></div>
+      <form method="POST" id="reschedule-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action"     value="reschedule">
+        <input type="hidden" name="date"       id="f-date">
+        <input type="hidden" name="start_time" id="f-start-time">
+        <button type="submit" class="btn btn-teal" id="btn-reschedule" disabled>Confirm New Time</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── CANCEL ── #}
+  {% if settings.client_cancel_enabled == 'true' and booking.status != 'cancelled' %}
+  <div class="section-card">
+    <button class="section-head" onclick="toggleSection('cancel-body', this)">
+      <span>Cancel Appointment</span>
+      <span class="chevron">&#9660;</span>
+    </button>
+    <div class="section-body" id="cancel-body">
+      <p style="font-family:Arial,sans-serif;font-size:14px;color:var(--text-muted);margin-bottom:14px;">
+        Are you sure you want to cancel this appointment? This cannot be undone.
+      </p>
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action"     value="cancel">
+        <button type="submit" class="btn" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;">
+          Yes, Cancel My Appointment
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BOOKING_ID    = {{ booking.id | tojson }};
+const CSRF_TOKEN    = {{ csrf_token() | tojson }};
+const STRIPE_ENABLED = {{ 'true' if stripe_enabled else 'false' }};
+const STRIPE_PK     = {{ stripe_public_key | tojson }};
+const DURATION      = {{ booking.duration_mins }};
+
+/* ── Section toggle ── */
+function toggleSection(bodyId, btn) {
+  const body = document.getElementById(bodyId);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  btn.classList.toggle('open', !isOpen);
+}
+
+/* ── Stripe init ── */
+let stripe = null, cardElement = null;
+if (STRIPE_ENABLED && STRIPE_PK) {
+  stripe = Stripe(STRIPE_PK);
+  const elements = stripe.elements();
+  cardElement = elements.create('card', {
+    style: {
+      base: { fontFamily:'Arial,sans-serif', fontSize:'15px', color:'#1e293b', '::placeholder':{color:'#94a3b8'} },
+      invalid: { color:'#e53e3e' }
+    }
+  });
+  cardElement.mount('#stripe-card-element');
+  cardElement.on('change', e => {
+    document.getElementById('stripe-card-errors').textContent = e.error ? e.error.message : '';
+  });
+}
+
+function setPayBtn(loading) {
+  const btn = document.getElementById('pay-btn');
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Processing…' : 'Pay ${{ "%.2f"|format(booking.price) }} NZD';
+}
+
+function showPayError(msg) {
+  const el = document.getElementById('demo-pay-error');
+  el.textContent = msg;
+}
+
+async function submitPayment() {
+  showPayError('');
+  setPayBtn(true);
+
+  if (!STRIPE_ENABLED) {
+    /* Demo flow — just POST to mark paid */
+    try {
+      const r = await fetch('/api/payment/demo', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({ booking_id: BOOKING_ID })
+      });
+      const d = await r.json();
+      if (d.ok) { window.location.reload(); return; }
+      showPayError(d.error || 'Something went wrong.');
+    } catch(e) { showPayError('Network error. Please try again.'); }
+    setPayBtn(false);
+    return;
+  }
+
+  /* Stripe flow */
+  let clientSecret;
+  try {
+    const r = await fetch('/api/payment/intent', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRFToken': CSRF_TOKEN },
+      body: JSON.stringify({ booking_id: BOOKING_ID })
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) { showPayError(d.error || 'Could not initialise payment.'); setPayBtn(false); return; }
+    clientSecret = d.client_secret;
+  } catch(e) { showPayError('Network error. Please try again.'); setPayBtn(false); return; }
+
+  const { paymentIntent, error } = await stripe.confirmCardPayment(clientSecret, {
+    payment_method: { card: cardElement }
+  });
+  if (error) { showPayError(error.message); setPayBtn(false); return; }
+
+  try {
+    await fetch('/api/payment/complete', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRFToken': CSRF_TOKEN },
+      body: JSON.stringify({ booking_id: BOOKING_ID, payment_intent_id: paymentIntent.id })
+    });
+  } catch(e) {}
+  window.location.reload();
+}
+
+/* ── Reschedule calendar ── */
+let selectedDate = null, calYear, calMonth;
+(function(){ const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); renderCalendar(); })();
+
+function changeMonth(d){ calMonth+=d; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+
+function renderCalendar(){
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-month-label').textContent = months[calMonth]+' '+calYear;
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = days.map(d=>'<div class="cal-day-header">'+d+'</div>').join('');
+  const first=(new Date(calYear,calMonth,1).getDay()+6)%7;
+  const last=new Date(calYear,calMonth+1,0).getDate();
+  for(let i=0;i<first;i++) html+='<div class="cal-cell empty"></div>';
+  const today=new Date(); today.setHours(0,0,0,0);
+  const max=new Date(today); max.setDate(today.getDate()+42);
+  for(let d=1;d<=last;d++){
+    const dt=new Date(calYear,calMonth,d);
+    const ds=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    if(dt<today||dt>max){ html+='<div class="cal-cell disabled">'+d+'</div>'; }
+    else { html+='<div class="cal-cell available'+(selectedDate===ds?' selected':'')+'" onclick="selectDate(\''+ds+'\')">'+d+'</div>'; }
+  }
+  document.getElementById('cal-grid').innerHTML=html;
+}
+
+function selectDate(ds){
+  selectedDate=ds;
+  document.getElementById('f-date').value=ds;
+  document.getElementById('f-start-time').value='';
+  document.getElementById('btn-reschedule').disabled=true;
+  renderCalendar();
+  const c=document.getElementById('slots-container');
+  c.innerHTML='<p style="font-family:Arial,sans-serif;font-size:14px;color:#94a3b8;">Loading…</p>';
+  fetch('/api/slots?date='+ds+'&duration='+DURATION)
+    .then(r=>r.json()).then(slots=>{
+      if(!slots.length){c.innerHTML='<p style="font-family:Arial,sans-serif;font-size:14px;color:#94a3b8;">No available times on this date.</p>';return;}
+      c.innerHTML='<div style="display:flex;flex-wrap:wrap;">'+slots.map(s=>'<button type="button" class="slot-btn" onclick="selectSlot(this,\''+s.value+'\')">'+s.label+'</button>').join('')+'</div>';
+    }).catch(()=>{c.innerHTML='<p style="font-family:Arial,sans-serif;font-size:14px;color:#94a3b8;">Could not load times.</p>';});
+}
+
+function selectSlot(btn,v){
+  document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('f-start-time').value=v;
+  document.getElementById('btn-reschedule').disabled=false;
+}
+</script>
+{% endblock %}
