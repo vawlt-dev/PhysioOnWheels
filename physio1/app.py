@@ -519,7 +519,7 @@ def payment_complete():
     send_email(
         booking['email'],
         'Payment Confirmed — PhysioOnWheels',
-        booking_email_body(booking, '<p>Your payment has been received and your appointment is confirmed.</p>'),
+        booking_email_body(booking, f'<p>Your payment has been received and your appointment is confirmed.</p><p><a href="{request.host_url}booking/manage/{booking["cancel_token"]}">View your appointment</a></p>'),
     )
     if owner_email:
         send_email(owner_email, f'Payment Received — {booking["name"]}',
@@ -552,7 +552,7 @@ def payment_demo():
     send_email(
         booking['email'],
         'Payment Confirmed — PhysioOnWheels',
-        booking_email_body(booking, '<p>Your payment has been received and your appointment is confirmed.</p>'),
+        booking_email_body(booking, f'<p>Your payment has been received and your appointment is confirmed.</p><p><a href="{request.host_url}booking/manage/{booking["cancel_token"]}">View your appointment</a></p>'),
     )
     if owner_email:
         send_email(owner_email, f'Payment Received — {booking["name"]}',
