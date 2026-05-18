@@ -891,14 +891,18 @@ def admin_send_payment_link(booking_id: str):
     booking = db.get_booking(booking_id)
     if not booking:
         abort(404)
-    send_email(
-        booking['email'],
-        'Payment Required — PhysioOnWheels',
-        booking_email_body(booking, f"""
-        <p>Please complete your booking by making payment:</p>
-        <p><a href="{request.host_url}pay/{booking_id}" style="background:#0d9488;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;">Pay ${booking['price']:.2f} NZD</a></p>
-        """),
-    )
+
+    manage_url = f"{request.host_url}booking/manage/{booking['cancel_token']}"
+    btn = lambda label, url: f'<p><a href="{url}" style="background:#0d9488;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;">{label}</a></p>'
+
+    if booking['payment_status'] == 'paid':
+        subject = 'Appointment Confirmation — PhysioOnWheels'
+        extra   = f'<p>Your appointment is confirmed and payment has been received. We look forward to seeing you.</p>{btn("View Appointment", manage_url)}'
+    else:
+        subject = 'Complete Your Booking — PhysioOnWheels'
+        extra   = f'<p>Please complete your booking by making payment:</p>{btn(f"Pay ${booking[\'price\']:.2f} NZD", manage_url)}'
+
+    send_email(booking['email'], subject, booking_email_body(booking, extra))
     return redirect('/admin#bookings')
 
 
