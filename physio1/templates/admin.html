@@ -351,7 +351,7 @@
                   {% if b.payment_status != 'paid' %}
                   <form method="POST" action="/admin/bookings/{{ b.id }}/send-payment-link" style="display:inline;margin-top:4px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-sm" style="background:var(--coral);" title="Send payment link email">&#9993; Pay Link</button>
+                    <button type="submit" class="btn-sm" style="background:var(--coral);" title="Send payment link email">&#9993; Send Details</button>
                   </form>
                   {% endif %}
                 </td>
