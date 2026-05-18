@@ -516,7 +516,7 @@ def admin_content():
         ct['phone']        = request.form.get('contact_phone', '')[:50].strip()
         ct['email']        = request.form.get('contact_email', '')[:200].strip()
         ct['service_area'] = request.form.get('contact_area',  '')[:200].strip()
-        ct['hours']        = request.form.get('contact_hours', '')[:200].strip()
+        # hours are derived from working_hours table — not stored here
         _save_content(data)
     return redirect('/admin#content')
 
@@ -852,9 +852,47 @@ def set_security_headers(response):
     return response
 
 
+def _format_working_hours() -> str:
+    hours = db.get_working_hours()
+    enabled = [h for h in hours if h['enabled']]
+    if not enabled:
+        return 'By appointment'
+
+    def fmt_time(t: str) -> str:
+        h, m = map(int, t.split(':'))
+        h12 = h % 12 or 12
+        suffix = 'am' if h < 12 else 'pm'
+        return f"{h12}:{m:02d}{suffix}" if m else f"{h12}{suffix}"
+
+    # Group consecutive days with identical hours
+    short = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    groups = []
+    i = 0
+    while i < len(enabled):
+        j = i
+        while (j + 1 < len(enabled)
+               and enabled[j + 1]['start_time'] == enabled[i]['start_time']
+               and enabled[j + 1]['end_time']   == enabled[i]['end_time']
+               and enabled[j + 1]['day_of_week'] == enabled[j]['day_of_week'] + 1):
+            j += 1
+        start_day = short[enabled[i]['day_of_week']]
+        end_day   = short[enabled[j]['day_of_week']]
+        time_str  = f"{fmt_time(enabled[i]['start_time'])}–{fmt_time(enabled[i]['end_time'])}"
+        if i == j:
+            groups.append(f"{start_day} {time_str}")
+        else:
+            groups.append(f"{start_day}–{end_day} {time_str}")
+        i = j + 1
+
+    return ' · '.join(groups)
+
+
 @app.context_processor
 def inject_globals():
-    return {'current_year': datetime.datetime.now().year}
+    return {
+        'current_year': datetime.datetime.now().year,
+        'working_hours_display': _format_working_hours(),
+    }
 
 
 if __name__ == '__main__':
